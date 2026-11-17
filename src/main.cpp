@@ -66,11 +66,18 @@ int main(int argc, char *argv[])
                                   QStringLiteral("运行 2.5 秒后截取全屏并退出，仅用于验证"),
                                   QStringLiteral("dir"));
     parser.addOption(shotOption);
+    QCommandLineOption managerPageOption(QStringLiteral("manager-page"),
+                                        QStringLiteral("打开控制中心时定位到指定页（0 模型 1 角色 2 人设 3 世界观 4 数据 5 关于）"),
+                                        QStringLiteral("index"));
+    parser.addOption(managerPageOption);
     QCommandLineOption demoOption(QStringLiteral("demo"),
                                   QStringLiteral("发一条消息，等回复完成后截图并退出，仅用于验证"),
                                   QStringLiteral("dir"));
     parser.addOption(demoOption);
     parser.process(app);
+    const int managerPageIndex = parser.isSet(managerPageOption)
+                                    ? parser.value(managerPageOption).toInt()
+                                    : -1;
 
     const bool smokeMode = parser.isSet(smokeOption);
     const QString smokeDir = smokeMode ? parser.value(smokeOption) : QString();
@@ -122,6 +129,8 @@ int main(int argc, char *argv[])
     Bridge bridge;
 
     QQmlApplicationEngine engine;
+    if (managerPageIndex >= 0)
+        bridge.setManagerPage(managerPageIndex);
     engine.rootContext()->setContextProperty(QStringLiteral("bridge"), &bridge);
 
     const QString bundledQml = QCoreApplication::applicationDirPath() + QStringLiteral("/qml");

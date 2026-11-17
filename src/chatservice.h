@@ -29,6 +29,11 @@ public:
     void stop();
     void clearConversation();
 
+    /// 切换对话上下文：分区键（角色+人设）与 system prompt 覆盖。
+    /// 分区键变化时开新会话并重新加载历史。
+    void setContext(const QString &partitionKey, const QString &systemPrompt);
+    QString partitionKey() const { return m_partitionKey; }
+
     /// 切人设：开一个新会话并清空上下文。
     void switchPersona(const QString &personaId);
 
@@ -68,6 +73,9 @@ private:
     LlmClient m_llm;
     QList<QPair<QString, QString>> m_history;
     QString m_partial;
+    QString m_partitionKey;
+    bool m_contextInitialized = false;
+    QString m_promptOverride;
     Source m_source = Source::None;
     bool m_active = false;
 };

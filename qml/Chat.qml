@@ -189,6 +189,9 @@ Window {
         function onConversationCleared() {
             messages.clear()
             errorLabel.text = ""
+            const history = bridge.initialMessages()
+            for (let i = 0; i < history.length; ++i)
+                messages.append({ "role": history[i].role, "text": history[i].text })
         }
         function onChatStateChanged(state) {
             if (state === "thinking" || state === "streaming")

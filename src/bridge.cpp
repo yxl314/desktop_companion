@@ -1,10 +1,14 @@
 #include "bridge.h"
 
 #include <QApplication>
-#include <QDesktopServices>
 #include <QCursor>
+#include <QDateTime>
+#include <QDesktopServices>
+#include <QDirIterator>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QTextStream>
 #include <QMenu>
 #include <QRandomGenerator>
 #include <QScreen>
@@ -16,7 +20,13 @@
 
 #include "chatservice.h"
 #include "autostart.h"
+#include "characterpack.h"
+#include "characterstore.h"
 #include "chatstore.h"
+#include "errorcodes.h"
+#include "personafile.h"
+#include "promptbuilder.h"
+#include "worldstore.h"
 #include "configstore.h"
 #include "personastore.h"
 
@@ -53,6 +63,8 @@ Bridge::Bridge(QObject *parent)
     , m_personas(new PersonaStore())
     , m_store(new ChatStore())
     , m_chat(new ChatService(m_config, m_personas, m_store, this))
+    , m_characters(new CharacterStore())
+    , m_worlds(new WorldStore())
 {
     m_petX = m_config->values().petX;
     m_petY = m_config->values().petY;
@@ -80,6 +92,13 @@ Bridge::Bridge(QObject *parent)
             setStatusText(QString());
         emit chatStateChanged(state);
     });
+    connect(m_characters, &CharacterStore::changed, this, &Bridge::refreshCharacters);
+    connect(m_worlds, &WorldStore::changed, this, &Bridge::refreshWorlds);
+
+    ensureDefaultCharacter();
+    applyCharacterContext();
+    refreshCharacters();
+    refreshWorlds();
 }
 
 Bridge::~Bridge() = default;
@@ -98,6 +117,14 @@ void Bridge::setChatVisible(bool visible)
         return;
     m_chatVisible = visible;
     emit chatVisibleChanged();
+}
+
+void Bridge::setManagerPage(int page)
+{
+    if (m_managerPage == page)
+        return;
+    m_managerPage = page;
+    emit managerPageChanged();
 }
 
 void Bridge::setManagerVisible(bool visible)
@@ -155,6 +182,16 @@ QVariantList Bridge::initialMessages() const
 
 QString Bridge::personaName() const
 {
+    const QString characterId = m_config->values().characterId;
+    if (!characterId.isEmpty() && m_characters->contains(characterId)) {
+        PersonaData persona;
+        QString error;
+        const QString personaId = m_config->values().personaId;
+        if (!personaId.isEmpty() && m_characters->persona(characterId, personaId, &persona, &error))
+            return persona.name;
+        if (m_characters->card(characterId, &persona, &error))
+            return persona.name;
+    }
     return m_personas->find(m_config->values().personaId).name;
 }
 
@@ -217,7 +254,31 @@ QStringList Bridge::presets() const
 QVariantList Bridge::personas() const
 {
     QVariantList result;
+    const QString characterId = m_config->values().characterId;
     const QString currentId = m_config->values().personaId;
+
+    if (!characterId.isEmpty() && m_characters->contains(characterId)) {
+        PersonaData card;
+        QString error;
+        if (m_characters->card(characterId, &card, &error)) {
+            QVariantMap item;
+            item.insert(QStringLiteral("id"), QString());
+            item.insert(QStringLiteral("name"), card.name.isEmpty() ? QStringLiteral("默认人设") : card.name);
+            item.insert(QStringLiteral("builtin"), false);
+            item.insert(QStringLiteral("current"), currentId.isEmpty());
+            result.append(item);
+        }
+        for (const PersonaData &persona : m_characters->personas(characterId)) {
+            QVariantMap item;
+            item.insert(QStringLiteral("id"), persona.id);
+            item.insert(QStringLiteral("name"), persona.name);
+            item.insert(QStringLiteral("builtin"), false);
+            item.insert(QStringLiteral("current"), persona.id == currentId);
+            result.append(item);
+        }
+        return result;
+    }
+
     for (const Persona &persona : m_personas->personas()) {
         QVariantMap item;
         item.insert(QStringLiteral("id"), persona.id);
@@ -385,6 +446,25 @@ void Bridge::importPersona()
 
 void Bridge::removePersona(const QString &personaId)
 {
+    const QString characterId = m_config->values().characterId;
+    if (!characterId.isEmpty() && m_characters->contains(characterId)) {
+        if (personaId.isEmpty())
+            return;
+        QString error;
+        if (!m_characters->removePersona(characterId, personaId, &error)) {
+            reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+            return;
+        }
+        if (m_config->values().personaId == personaId) {
+            m_config->setPersonaId(QString());
+            m_config->save();
+        }
+        applyCharacterContext();
+        emit personasChanged();
+        emit settingsChanged();
+        return;
+    }
+
     if (!m_personas->remove(personaId))
         return;
     if (m_config->values().personaId == personaId) {
@@ -397,6 +477,17 @@ void Bridge::removePersona(const QString &personaId)
 
 void Bridge::selectPersona(const QString &personaId)
 {
+    const QString characterId = m_config->values().characterId;
+    if (!characterId.isEmpty() && m_characters->contains(characterId)) {
+        m_config->setPersonaId(personaId);
+        m_config->save();
+        applyCharacterContext();
+        emit settingsChanged();
+        emit personasChanged();
+        setStatusText(QStringLiteral("已切换人设：%1").arg(personaName()));
+        return;
+    }
+
     m_config->setPersonaId(personaId);
     m_config->save();
     m_chat->switchPersona(personaId);
@@ -448,6 +539,532 @@ void Bridge::openDataFolder() const
 void Bridge::openLogFolder() const
 {
     QDesktopServices::openUrl(QUrl::fromLocalFile(logDir()));
+}
+
+
+QString Bridge::currentCharacterId() const
+{
+    return m_config->values().characterId;
+}
+
+QString Bridge::currentPersonaId() const
+{
+    return m_config->values().personaId;
+}
+
+QVariantList Bridge::characters() const
+{
+    QVariantList result;
+    const QString currentId = m_config->values().characterId;
+    for (const Character &character : m_characters->list()) {
+        QVariantMap item;
+        item.insert(QStringLiteral("id"), character.id);
+        item.insert(QStringLiteral("name"), character.name);
+        item.insert(QStringLiteral("worldId"), character.worldId);
+        item.insert(QStringLiteral("avatar"), character.avatarPath);
+        item.insert(QStringLiteral("enabled"), character.enabled);
+        item.insert(QStringLiteral("current"), character.id == currentId);
+        result.append(item);
+    }
+    return result;
+}
+
+QVariantList Bridge::worlds() const
+{
+    QVariantList result;
+    QString currentWorld = QString();
+    const QString characterId = m_config->values().characterId;
+    if (!characterId.isEmpty())
+        currentWorld = m_characters->worldId(characterId);
+
+    for (const World &world : m_worlds->list()) {
+        QVariantMap item;
+        item.insert(QStringLiteral("id"), world.id);
+        item.insert(QStringLiteral("name"), world.name);
+        item.insert(QStringLiteral("current"), world.id == currentWorld);
+        World full;
+        if (m_worlds->read(world.id, &full))
+            item.insert(QStringLiteral("body"), full.content);
+        result.append(item);
+    }
+    return result;
+}
+
+QString Bridge::currentCharacterName() const
+{
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty())
+        return personaName();
+    for (const Character &character : m_characters->list()) {
+        if (character.id == characterId)
+            return character.name;
+    }
+    return characterId;
+}
+
+void Bridge::refreshCharacters()
+{
+    emit charactersChanged();
+}
+
+void Bridge::refreshWorlds()
+{
+    emit worldsChanged();
+}
+
+void Bridge::reportInfo(const QString &text)
+{
+    setStatusText(text);
+}
+
+void Bridge::reportError(quint32 code, const QString &detail)
+{
+    const AppError error = errors::make(static_cast<ErrorCode>(code), detail);
+    setStatusText(error.toString());
+    STACKLOG_WARN() << error.toString().toStdString();
+}
+
+void Bridge::ensureDefaultCharacter()
+{
+    if (!m_config->values().characterId.isEmpty() || !m_characters->list().isEmpty())
+        return;
+
+    QString newId;
+    QString error;
+    if (!m_characters->create(QStringLiteral("小柚"), &newId, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    m_config->setCharacterId(newId);
+    m_config->save();
+    STACKLOG_INFO() << "created default character: " << newId.toStdString();
+}
+
+QString Bridge::buildCharacterPrompt(const QString &characterId, const QString &personaId) const
+{
+    PersonaData persona;
+    QString error;
+    const bool hasPersona = !personaId.isEmpty()
+                           && m_characters->persona(characterId, personaId, &persona, &error);
+    if (!hasPersona && !m_characters->card(characterId, &persona, &error))
+        return QString();
+
+    QString worldBody;
+    const QString worldId = m_characters->worldId(characterId);
+    if (!worldId.isEmpty()) {
+        World world;
+        if (m_worlds->read(worldId, &world, &error))
+            worldBody = world.content;
+    }
+
+    PromptContext context;
+    context.characterId = characterId;
+    context.personaName = persona.name;
+    context.personaBody = persona.body;
+    if (context.personaName.isEmpty())
+        context.personaName = characterId;
+    if (!persona.hobbies.isEmpty())
+        context.situation = QStringLiteral("爱好：%1；最爱的食物：%2").arg(persona.hobbies, persona.favoriteFood);
+    context.worldBody = worldBody;
+    context.constraints = PromptBuilder::defaultConstraints();
+    return PromptBuilder::build(context);
+}
+
+void Bridge::applyCharacterContext()
+{
+    const QString characterId = m_config->values().characterId;
+    const QString personaId = m_config->values().personaId;
+    if (!characterId.isEmpty() && m_characters->contains(characterId)) {
+        const QString prompt = buildCharacterPrompt(characterId, personaId);
+        const QString partition = QStringLiteral("character/%1/%2")
+                                      .arg(characterId, personaId.isEmpty() ? QStringLiteral("default") : personaId);
+        m_chat->setContext(partition, prompt);
+    } else {
+        m_chat->setContext(personaId, QString());
+    }
+    emit settingsChanged();
+}
+
+void Bridge::createCharacter(const QString &name)
+{
+    QString newId;
+    QString error;
+    if (!m_characters->create(name, &newId, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    m_config->setCharacterId(newId);
+    m_config->setPersonaId(QString());
+    m_config->save();
+    applyCharacterContext();
+    refreshCharacters();
+    reportInfo(QStringLiteral("已创建角色：%1").arg(name));
+}
+
+void Bridge::renameCharacter(const QString &id, const QString &newName)
+{
+    QString error;
+    if (!m_characters->rename(id, newName, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    refreshCharacters();
+    emit settingsChanged();
+    reportInfo(QStringLiteral("已重命名角色"));
+}
+
+void Bridge::removeCharacter(const QString &id)
+{
+    QString error;
+    if (!m_characters->remove(id, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    if (m_config->values().characterId == id) {
+        m_config->setCharacterId(QString());
+        m_config->setPersonaId(QString());
+        m_config->save();
+        applyCharacterContext();
+    }
+    refreshCharacters();
+    reportInfo(QStringLiteral("已删除角色"));
+}
+
+void Bridge::selectCharacter(const QString &id)
+{
+    if (!m_characters->contains(id)) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("角色不存在：%1").arg(id));
+        return;
+    }
+    m_config->setCharacterId(id);
+    m_config->setPersonaId(QString());
+    m_config->save();
+    applyCharacterContext();
+    refreshCharacters();
+    refreshWorlds();
+}
+
+void Bridge::importAvatarFile()
+{
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty()) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        return;
+    }
+    const QString path = QFileDialog::getOpenFileName(nullptr, QStringLiteral("选择角色形象"),
+                                                      QString(), QStringLiteral("图片 (*.png *.jpg *.jpeg *.webp *.gif *.bmp)"));
+    if (path.isEmpty())
+        return;
+    QString storedPath;
+    QString error;
+    if (!m_characters->importAvatar(characterId, path, &storedPath, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidImage), error);
+        return;
+    }
+    refreshCharacters();
+    reportInfo(QStringLiteral("已更新角色形象"));
+}
+
+QVariantMap Bridge::personaFields(const QString &personaId) const
+{
+    QVariantMap map;
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty())
+        return map;
+
+    PersonaData persona;
+    QString error;
+    const bool ok = personaId.isEmpty() ? m_characters->card(characterId, &persona, &error)
+                                        : m_characters->persona(characterId, personaId, &persona, &error);
+    if (!ok)
+        return map;
+
+    map.insert(QStringLiteral("id"), personaId);
+    map.insert(QStringLiteral("name"), persona.name);
+    map.insert(QStringLiteral("birthday"), persona.birthday);
+    map.insert(QStringLiteral("zodiac"), persona.zodiac);
+    map.insert(QStringLiteral("hobbies"), persona.hobbies);
+    map.insert(QStringLiteral("favoriteFood"), persona.favoriteFood);
+    map.insert(QStringLiteral("background"), persona.background);
+    map.insert(QStringLiteral("body"), persona.body);
+    return map;
+}
+
+void Bridge::savePersonaFields(const QVariantMap &fields)
+{
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty()) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        return;
+    }
+
+    PersonaData data;
+    data.id = fields.value(QStringLiteral("id")).toString();
+    data.name = fields.value(QStringLiteral("name")).toString().trimmed();
+    data.birthday = fields.value(QStringLiteral("birthday")).toString();
+    data.zodiac = fields.value(QStringLiteral("zodiac")).toString();
+    data.hobbies = fields.value(QStringLiteral("hobbies")).toString();
+    data.favoriteFood = fields.value(QStringLiteral("favoriteFood")).toString();
+    data.background = fields.value(QStringLiteral("background")).toString();
+    data.body = fields.value(QStringLiteral("body")).toString();
+
+    QString error;
+    if (data.id.isEmpty()) {
+        if (!m_characters->saveCard(characterId, data, &error)) {
+            reportError(static_cast<quint32>(ErrorCode::InvalidPersona), error);
+            return;
+        }
+    } else {
+        if (!m_characters->savePersona(characterId, data, nullptr, &error)) {
+            reportError(static_cast<quint32>(ErrorCode::InvalidPersona), error);
+            return;
+        }
+    }
+    applyCharacterContext();
+    emit personasChanged();
+    reportInfo(QStringLiteral("人设已保存"));
+}
+
+void Bridge::createPersona(const QString &name)
+{
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty()) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        return;
+    }
+    PersonaData data;
+    data.name = name.trimmed().isEmpty() ? QStringLiteral("新人设") : name.trimmed();
+    QString personaId;
+    QString error;
+    if (!m_characters->savePersona(characterId, data, &personaId, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidPersona), error);
+        return;
+    }
+    m_config->setPersonaId(personaId);
+    m_config->save();
+    applyCharacterContext();
+    emit personasChanged();
+    reportInfo(QStringLiteral("已创建人设：%1").arg(data.name));
+}
+
+void Bridge::importPersonaFile()
+{
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty()) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        return;
+    }
+    const QString path = QFileDialog::getOpenFileName(nullptr, QStringLiteral("导入人设（Markdown）"),
+                                                      QString(), QStringLiteral("Markdown (*.md)"));
+    if (path.isEmpty())
+        return;
+
+    PersonaData data;
+    QString error;
+    if (!parsePersonaFile(path, &data, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidPersona), error);
+        return;
+    }
+    for (const PersonaData &existing : m_characters->personas(characterId)) {
+        if (existing.name == data.name) {
+            reportError(static_cast<quint32>(ErrorCode::FileNameConflict),
+                        QStringLiteral("人设已存在：%1").arg(data.name));
+            return;
+        }
+    }
+    QString personaId;
+    if (!m_characters->savePersona(characterId, data, &personaId, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidPersona), error);
+        return;
+    }
+    m_config->setPersonaId(personaId);
+    m_config->save();
+    applyCharacterContext();
+    emit personasChanged();
+    reportInfo(QStringLiteral("已导入人设：%1").arg(data.name));
+}
+
+void Bridge::createWorld(const QString &name)
+{
+    QString newId;
+    QString error;
+    if (!m_worlds->create(name, &newId, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    refreshWorlds();
+    reportInfo(QStringLiteral("已创建世界观：%1").arg(name));
+}
+
+void Bridge::renameWorld(const QString &id, const QString &newName)
+{
+    QString error;
+    if (!m_worlds->rename(id, newName, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    refreshWorlds();
+    reportInfo(QStringLiteral("世界观已重命名"));
+}
+
+void Bridge::removeWorld(const QString &id)
+{
+    QString error;
+    if (!m_worlds->remove(id, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    refreshWorlds();
+    reportInfo(QStringLiteral("世界观已删除"));
+}
+
+void Bridge::saveWorldBody(const QString &id, const QString &body)
+{
+    World world;
+    QString error;
+    if (!m_worlds->read(id, &world, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileReadFailed), error);
+        return;
+    }
+    world.content = body;
+    if (!m_worlds->write(id, world, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    refreshWorlds();
+    applyCharacterContext();
+    emit worldsChanged();
+    reportInfo(QStringLiteral("世界观已保存"));
+}
+
+void Bridge::importWorldFile()
+{
+    const QString path = QFileDialog::getOpenFileName(nullptr, QStringLiteral("导入世界观（Markdown）"),
+                                                      QString(), QStringLiteral("Markdown (*.md)"));
+    if (path.isEmpty())
+        return;
+    QString newId;
+    QString error;
+    if (!m_worlds->importFrom(path, &newId, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    refreshWorlds();
+    reportInfo(QStringLiteral("已导入世界观"));
+}
+
+void Bridge::assignCharacterWorld(const QString &worldId)
+{
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty()) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        return;
+    }
+    QString error;
+    if (!m_characters->setWorldId(characterId, worldId, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    applyCharacterContext();
+    refreshWorlds();
+    refreshCharacters();
+    reportInfo(QStringLiteral("已更新角色世界观"));
+}
+
+QString Bridge::currentCharacterDir() const
+{
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty())
+        return QString();
+    return m_characters->characterDir(characterId);
+}
+
+void Bridge::exportCharacterPack()
+{
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty()) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        return;
+    }
+    const QString defaultName = characterId + QStringLiteral("-pack.zip");
+    const QString path = QFileDialog::getSaveFileName(nullptr, QStringLiteral("导出角色包"),
+                                                      QDir::homePath() + QLatin1Char('/') + defaultName,
+                                                      QStringLiteral("Zip (*.zip)"));
+    if (path.isEmpty())
+        return;
+    QString error;
+    if (!characterpack::exportPack(m_characters->characterDir(characterId), path, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    reportInfo(QStringLiteral("角色包已导出：%1").arg(path));
+}
+
+void Bridge::importCharacterPack()
+{
+    const QString path = QFileDialog::getOpenFileName(nullptr, QStringLiteral("导入角色包"),
+                                                      QString(), QStringLiteral("Zip (*.zip)"));
+    if (path.isEmpty())
+        return;
+    QString newId;
+    QString error;
+    if (!characterpack::importPack(path, m_characters->charactersDir(), &newId, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::IncompleteCharacterPack), error);
+        return;
+    }
+    refreshCharacters();
+    reportInfo(QStringLiteral("已导入角色：%1").arg(newId));
+}
+
+void Bridge::exportChatHistory()
+{
+    if (m_store == nullptr) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), QStringLiteral("聊天库不可用"));
+        return;
+    }
+    const QString path = QFileDialog::getSaveFileName(nullptr, QStringLiteral("导出聊天记录"),
+                                                      QDir::homePath() + QStringLiteral("/chat.md"),
+                                                      QStringLiteral("Markdown (*.md)"));
+    if (path.isEmpty())
+        return;
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), file.errorString());
+        return;
+    }
+    QTextStream out(&file);
+    out << QStringLiteral("# 与 %1 的聊天记录\n\n").arg(currentCharacterName());
+    for (const StoredMessage &message : m_store->recentMessages(10000)) {
+        const QString speaker = message.role == QLatin1String("user") ? QStringLiteral("我") : currentCharacterName();
+        out << QStringLiteral("**%1**：").arg(speaker) << message.content << QStringLiteral("\n\n");
+    }
+    file.close();
+    reportInfo(QStringLiteral("聊天记录已导出：%1").arg(path));
+}
+
+void Bridge::exportLogs()
+{
+    const QString targetDir = QFileDialog::getExistingDirectory(nullptr, QStringLiteral("选择日志导出目录"));
+    if (targetDir.isEmpty())
+        return;
+
+    const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
+    const QString dest = targetDir + QStringLiteral("/desktop_companion-logs-") + stamp;
+    if (!QDir().mkpath(dest)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), dest);
+        return;
+    }
+
+    int copied = 0;
+    QDirIterator iterator(logDir(), QDir::Files);
+    while (iterator.hasNext()) {
+        const QString source = iterator.next();
+        const QString target = dest + QLatin1Char('/') + QFileInfo(source).fileName();
+        if (QFile::copy(source, target))
+            ++copied;
+    }
+    reportInfo(QStringLiteral("已导出 %1 个日志文件到 %2").arg(copied).arg(dest));
 }
 
 void Bridge::quitApp()

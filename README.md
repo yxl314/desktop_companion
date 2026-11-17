@@ -1,11 +1,17 @@
 # 桌面桌宠（desktop_companion）
 
-Windows 桌面 AI 桌宠原型。**0.3：SQLite 聊天记录持久化 + 命中区分区 + API Key DPAPI 加密 + 开机自启**。
-Qt 6.12 + QML + C++23（MSYS2 ucrt64，g++ 16）。
+Windows 桌面 AI 桌宠原型。**0.4：角色库 + 多套人设 + 世界观 + 角色包 + 聊天/日志导出**。
+Qt 6.12 + QML + C++23（MSYS2 ucrt64，g++ 16），14 组单元测试。
 
-## 0.3 已实现
+## 0.4 已实现
 
 - 透明、无边框、置顶桌宠窗口（占位形象 `resources/pet.png`），空闲时上下漂浮
+- **角色库**：创建/重命名/删除角色，默认角色小柚；角色形象导入（PNG/JPG）
+- **多套人设**：frontmatter 编辑（称呼/生日/星座/爱好/食物/背景 + 正文），导入 .md，切换即时生效
+- **世界观**：新建/导入/编辑正文/重命名/删除，绑定到角色后注入提示词
+- **角色包**：zip 导入导出（人设 + 形象 + meta），自研 ZIP store 实现
+- **聊天/日志导出**：聊天记录导出 Markdown，日志目录导出到指定文件夹
+- **错误码体系**：0x0001~0x0009 统一错误对象，界面提示带错误码与原因
 - 点击桌宠：按**命中区**（头 / 身体 / 脚）说不同台词（4.2 秒自动隐藏），桌宠弹跳反馈
 - 拖拽：8px 阈值区分点击与拖拽，松手保存位置，下次启动恢复
 - 右键菜单：打开聊天 / 设置… / 隐藏桌宠 / 退出；托盘菜单同步
@@ -45,6 +51,16 @@ src/main.cpp             # 装配、托盘、单实例、日志、smoke/shot/dem
 src/bridge.{h,cpp}       # QML ↔ C++ 桥接（命令 / 属性 / 信号）
 src/chatservice.{h,cpp}  # 对话调度：LLM 优先，未配置回退 mock，维护历史并落库
 src/chatstore.{h,cpp}    # SQLite 聊天记录（会话 / 消息 / meta）
+src/characterstore.{h,cpp} # 角色库（目录/卡/元数据/形象/多套人设）
+src/worldstore.{h,cpp}   # 世界观 .md
+src/personafile.{h,cpp}  # 人设 frontmatter 解析/渲染
+src/characterpack.{h,cpp}# 角色包 zip（store 方式）导入导出
+src/errorcodes.{h,cpp}   # 统一错误码
+src/hitmask.{h,cpp}      # alpha 命中遮罩
+src/hitareameta.{h,cpp}  # meta.json 命中区解析
+src/memorystore.{h,cpp}  # 记忆库（0.5 接入对话）
+src/promptbuilder.{h,cpp}# 提示词固定顺序组装（0.5 接入对话）
+src/intimacyservice.{h,cpp} # 好感度（0.5 接入对话）
 src/secretstore.{h,cpp}  # Windows DPAPI 加解密（API Key）
 src/autostart.{h,cpp}    # HKCU Run 开机自启
 src/llmclient.{h,cpp}    # OpenAI 兼容流式客户端 + /models 连通性检查
@@ -57,7 +73,8 @@ qml/Bubble.qml           # 气泡窗口（点击穿透）
 qml/Chat.qml             # 聊天窗口
 qml/Manager.qml          # 控制中心（模型 / 人设 / 关于）
 resources/pet.png        # 占位形象（透明 PNG，240x320）
-tests/                   # ChatEngine / SseParser / ChatStore / ConfigStore+PersonaStore+DPAPI+自启 单测
+tests/                   # 14 组单测：对话/SSE/聊天库/配置/错误码/角色包/人设/角色库/世界观/
+                         # 命中遮罩/命中区/记忆库/提示词/好感度
 third_party/             # stacklog、singleproc 源码
 scripts/                 # 占位图生成、本地 mock LLM 服务
 docs/                    # 设计文档、竞品参考、截图
@@ -113,20 +130,22 @@ python scripts/mock_llm_server.py 8765
 ```
 %APPDATA%/desktop_companion/desktop_companion/config.json        模型配置（Key 为 DPAPI 密文）、人设选择、桌宠位置
 %APPDATA%/desktop_companion/desktop_companion/chat.db            SQLite 聊天记录（WAL）
+%APPDATA%/desktop_companion/desktop_companion/characters/<id>/   角色卡、meta.json、avatars、personas
+%APPDATA%/desktop_companion/desktop_companion/worlds/<id>/       世界观 world.md
 %APPDATA%/desktop_companion/desktop_companion/personas/*.md      导入的人设
 %APPDATA%/desktop_companion/desktop_companion/logs/              日志
 %APPDATA%/desktop_companion/desktop_companion/runtime/           单实例锁与门铃
 ```
 
-## 已知限制（0.3 原型）
+## 已知限制（0.4 原型）
 
-- 形象仍为占位图；命中区为比例分区（非素材标注），点击穿透、贴边隐藏、悬浮球、多桌宠未做
-- 聊天记录只保存消息；记忆/好感度/摘要未做，LLM 上下文仍限最近 20 条
-- 人设仅注入 system prompt，无角色包（zip/立绘/动作/命中区素材）
-- 无快捷键、无自动更新、无多语言
-- 开机自启只写 HKCU Run，未做失败回滚提示
+- 形象仍为占位图；命中区用比例分区，点击穿透、贴边隐藏、悬浮球、多桌宠未做
+- 记忆/好感度模块已实现但尚未接入对话（0.5）；LLM 上下文仍限最近 20 条
+- 世界观仅作为提示词段落注入，未实现角色互知
+- 无全局快捷键、模式切换、多语言、自动更新
+- 角色包为 store 方式 zip（不支持读取 deflate 压缩条目的外部 zip）
 
-## 下一步（0.4）
+## 下一步（0.5）
 
-记忆系统（SQLite 记忆事件 + 摘要）、角色包（zip：人设 + 立绘 + 动作 + 命中区）、
-贴边隐藏与全局快捷键、拖拽甩动动作、控制中心完善。
+把 MemoryStore / PromptBuilder / IntimacyService 接入 ChatService：
+记忆注入与自动抽取、好感度增减与等级、消息回溯/重启对话、主动对话。

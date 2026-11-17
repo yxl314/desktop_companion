@@ -47,6 +47,7 @@ void ConfigStore::load()
         m_config.apiKey = root.value(QStringLiteral("apiKey")).toString();
     m_config.model = root.value(QStringLiteral("model")).toString(m_config.model);
     m_config.personaId = root.value(QStringLiteral("personaId")).toString();
+    m_config.characterId = root.value(QStringLiteral("characterId")).toString();
     m_config.petX = root.value(QStringLiteral("petX")).toDouble(-1.0);
     m_config.petY = root.value(QStringLiteral("petY")).toDouble(-1.0);
 }
@@ -56,7 +57,7 @@ bool ConfigStore::save(QString *error)
     QDir().mkpath(QFileInfo(m_filePath).absolutePath());
 
     QJsonObject root;
-    root.insert(QStringLiteral("version"), 2);
+    root.insert(QStringLiteral("version"), 3);
     root.insert(QStringLiteral("preset"), m_config.preset);
     root.insert(QStringLiteral("baseUrl"), m_config.baseUrl);
     const QString protectedKey = secrets::protect(m_config.apiKey);
@@ -66,6 +67,7 @@ bool ConfigStore::save(QString *error)
         root.insert(QStringLiteral("apiKey"), m_config.apiKey);
     root.insert(QStringLiteral("model"), m_config.model);
     root.insert(QStringLiteral("personaId"), m_config.personaId);
+    root.insert(QStringLiteral("characterId"), m_config.characterId);
     root.insert(QStringLiteral("petX"), m_config.petX);
     root.insert(QStringLiteral("petY"), m_config.petY);
 
@@ -82,6 +84,12 @@ bool ConfigStore::save(QString *error)
         return false;
     }
     return true;
+}
+
+void ConfigStore::setCharacterId(const QString &characterId)
+{
+    m_config.characterId = characterId;
+    emit changed();
 }
 
 void ConfigStore::setLlm(const QString &preset, const QString &baseUrl, const QString &apiKey, const QString &model)

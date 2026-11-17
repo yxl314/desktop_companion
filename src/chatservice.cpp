@@ -17,11 +17,9 @@ ChatService::ChatService(ConfigStore *config, PersonaStore *personas, ChatStore 
     , m_personas(personas)
     , m_store(store)
 {
-    if (m_store != nullptr) {
-        m_store->ensureConversation(m_config->values().personaId);
-        for (const StoredMessage &message : m_store->recentMessages(maxHistoryMessages))
-            m_history.append(qMakePair(message.role, message.content));
-    }
+    // 会话分区在 Bridge 调用 setContext 时确定，构造阶段不创建会话，
+    // 避免每次启动先落一个空的历史分区。
+    m_partitionKey = m_config->values().personaId;
 
     connect(&m_mock, &ChatEngine::delta, this, [this](const QString &text) {
         if (!m_active || m_source != Source::Mock)
@@ -108,7 +106,26 @@ void ChatService::appendHistory(const QString &role, const QString &content)
 
 QString ChatService::systemPrompt() const
 {
+    if (!m_promptOverride.isEmpty())
+        return m_promptOverride;
     return m_personas->find(m_config->values().personaId).prompt;
+}
+
+void ChatService::setContext(const QString &partitionKey, const QString &systemPrompt)
+{
+    m_promptOverride = systemPrompt;
+    if (m_contextInitialized && partitionKey == m_partitionKey)
+        return;
+
+    m_partitionKey = partitionKey;
+    m_contextInitialized = true;
+    m_history.clear();
+    if (m_store != nullptr) {
+        m_store->ensureConversation(m_partitionKey);
+        for (const StoredMessage &message : m_store->recentMessages(maxHistoryMessages))
+            m_history.append(qMakePair(message.role, message.content));
+    }
+    emit conversationCleared();
 }
 
 void ChatService::send(const QString &text)

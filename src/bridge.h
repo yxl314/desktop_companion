@@ -3,13 +3,16 @@
 
 #include <QObject>
 #include <QString>
-#include <QVariantList>
 #include <QTimer>
+#include <QVariantList>
+#include <QVariantMap>
 
+class CharacterStore;
 class ChatService;
 class ChatStore;
 class ConfigStore;
 class PersonaStore;
+class WorldStore;
 
 /// QML 与 C++ 的唯一桥接面：命令走 Q_INVOKABLE，事件走信号。
 class Bridge : public QObject
@@ -41,6 +44,12 @@ class Bridge : public QObject
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     Q_PROPERTY(QString dataDir READ dataDir CONSTANT)
     Q_PROPERTY(QString logDir READ logDir CONSTANT)
+    Q_PROPERTY(QVariantList characters READ characters NOTIFY charactersChanged)
+    Q_PROPERTY(QVariantList worlds READ worlds NOTIFY worldsChanged)
+    Q_PROPERTY(QString currentCharacterId READ currentCharacterId NOTIFY settingsChanged)
+    Q_PROPERTY(QString currentCharacterName READ currentCharacterName NOTIFY settingsChanged)
+    Q_PROPERTY(QString currentPersonaId READ currentPersonaId NOTIFY settingsChanged)
+    Q_PROPERTY(int managerPage READ managerPage WRITE setManagerPage NOTIFY managerPageChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -69,6 +78,13 @@ public:
     QString modelSummary() const;
     bool llmReady() const;
     QVariantList personas() const;
+    QVariantList characters() const;
+    QVariantList worlds() const;
+    QString currentCharacterId() const;
+    QString currentCharacterName() const;
+    QString currentPersonaId() const;
+    int managerPage() const { return m_managerPage; }
+    void setManagerPage(int page);
     QStringList presets() const;
     QString presetName() const;
     QString baseUrl() const;
@@ -106,6 +122,27 @@ public:
     Q_INVOKABLE void openDataFolder() const;
     Q_INVOKABLE void openLogFolder() const;
 
+    // ---- 0.4 角色 / 人设 / 世界观 / 数据导出 ----
+    Q_INVOKABLE void createCharacter(const QString &name);
+    Q_INVOKABLE void renameCharacter(const QString &id, const QString &newName);
+    Q_INVOKABLE void removeCharacter(const QString &id);
+    Q_INVOKABLE void selectCharacter(const QString &id);
+    Q_INVOKABLE void importAvatarFile();
+    Q_INVOKABLE QVariantMap personaFields(const QString &personaId) const;
+    Q_INVOKABLE void savePersonaFields(const QVariantMap &fields);
+    Q_INVOKABLE void createPersona(const QString &name);
+    Q_INVOKABLE void importPersonaFile();
+    Q_INVOKABLE void createWorld(const QString &name);
+    Q_INVOKABLE void renameWorld(const QString &id, const QString &newName);
+    Q_INVOKABLE void removeWorld(const QString &id);
+    Q_INVOKABLE void saveWorldBody(const QString &id, const QString &body);
+    Q_INVOKABLE void importWorldFile();
+    Q_INVOKABLE void assignCharacterWorld(const QString &worldId);
+    Q_INVOKABLE void exportCharacterPack();
+    Q_INVOKABLE void importCharacterPack();
+    Q_INVOKABLE void exportChatHistory();
+    Q_INVOKABLE void exportLogs();
+
 signals:
     void petVisibleChanged();
     void chatVisibleChanged();
@@ -119,6 +156,9 @@ signals:
     void personasChanged();
     void testResultChanged();
     void autoStartChanged();
+    void managerPageChanged();
+    void charactersChanged();
+    void worldsChanged();
 
     void chatMessage(const QString &role, const QString &text);
     void chatDelta(const QString &text);
@@ -131,11 +171,21 @@ private:
     void setStatusText(const QString &text);
     void setTestResult(const QString &text);
     void positionBubble(double petX, double petY);
+    void reportError(quint32 code, const QString &detail);
+    void reportInfo(const QString &text);
+    void refreshCharacters();
+    void refreshWorlds();
+    void applyCharacterContext();
+    QString buildCharacterPrompt(const QString &characterId, const QString &personaId) const;
+    QString currentCharacterDir() const;
+    void ensureDefaultCharacter();
 
     ConfigStore *m_config = nullptr;
     PersonaStore *m_personas = nullptr;
     ChatStore *m_store = nullptr;
     ChatService *m_chat = nullptr;
+    CharacterStore *m_characters = nullptr;
+    WorldStore *m_worlds = nullptr;
     QTimer m_bubbleTimer;
     bool m_petVisible = true;
     bool m_chatVisible = false;
@@ -150,6 +200,7 @@ private:
     QString m_statusText;
     QString m_testResult;
     bool m_hasSavedPosition = false;
+    int m_managerPage = 0;
 };
 
 #endif // BRIDGE_H
