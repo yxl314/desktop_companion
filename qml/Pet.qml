@@ -8,8 +8,8 @@ Window {
     width: 240
     height: 320
     visible: bridge.petVisible
-    x: bridge.hasSavedPos ? bridge.petX : (Screen.width - width - 60)
-    y: bridge.hasSavedPos ? bridge.petY : (Screen.height - height - 120)
+    x: bridge.petX
+    y: bridge.petY
 
     Item {
         id: bob

@@ -47,11 +47,11 @@ Window {
             onCountChanged: positionViewAtEnd()
 
             delegate: Row {
-                width: ListView.view.width
+                width: list.width
                 layoutDirection: model.role === "user" ? Qt.RightToLeft : Qt.LeftToRight
 
                 Rectangle {
-                    width: Math.min(bubbleText.implicitWidth + 20, ListView.view.width * 0.72)
+                    width: Math.min(bubbleText.implicitWidth + 20, list.width * 0.72)
                     height: bubbleText.implicitHeight + 16
                     radius: 10
                     color: model.role === "user" ? "#8fd3a8" : "#ffffff"

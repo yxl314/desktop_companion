@@ -2,8 +2,10 @@
 
 #include <QApplication>
 #include <QCursor>
+#include <QGuiApplication>
 #include <QMenu>
 #include <QRandomGenerator>
+#include <QScreen>
 #include <QSettings>
 
 namespace {
@@ -43,6 +45,14 @@ Bridge::Bridge(QObject *parent)
         m_petX = x;
         m_petY = y;
         m_hasSavedPos = true;
+    } else if (QScreen *screen = QGuiApplication::primaryScreen()) {
+        // 默认放在主屏右下角；尺寸与 Pet.qml 的 Window 保持一致。
+        // Windows 下 availableGeometry 是设备像素，而窗口坐标是逻辑像素，需除以 DPR。
+        const QRect available = screen->availableGeometry();
+        const qreal dpr = screen->devicePixelRatio();
+        const QSize logical(available.width() / dpr, available.height() / dpr);
+        m_petX = logical.width() - 240 - 60;
+        m_petY = logical.height() - 320 - 80;
     }
 }
 

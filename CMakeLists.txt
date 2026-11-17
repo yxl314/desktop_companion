@@ -7,16 +7,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Gui Widgets)
 qt_standard_project_setup()
 
-qt_add_executable(desktop_companion
+qt_add_executable(desktop_companion WIN32
     src/main.cpp
     src/chatengine.h src/chatengine.cpp
     src/bridge.h src/bridge.cpp
 )
 
-qt_add_qml_module(desktop_companion
-    URI DesktopCompanion
-    VERSION 1.0
-    QML_FILES
+qt_add_resources(desktop_companion "qml_sources"
+    PREFIX "/qml"
+    BASE "qml"
+    FILES
         qml/Pet.qml
         qml/Chat.qml
         qml/Bubble.qml
