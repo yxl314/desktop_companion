@@ -19,6 +19,12 @@ Window {
 
     ListModel { id: messages }
 
+    Component.onCompleted: {
+        const history = bridge.initialMessages()
+        for (let i = 0; i < history.length; ++i)
+            messages.append({ "role": history[i].role, "text": history[i].text })
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 14

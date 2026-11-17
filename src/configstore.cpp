@@ -8,6 +8,8 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 
+#include "secretstore.h"
+
 namespace
 {
 QString defaultConfigPath()
@@ -37,7 +39,12 @@ void ConfigStore::load()
     const QJsonObject root = document.object();
     m_config.preset = root.value(QStringLiteral("preset")).toString(m_config.preset);
     m_config.baseUrl = root.value(QStringLiteral("baseUrl")).toString();
-    m_config.apiKey = root.value(QStringLiteral("apiKey")).toString();
+    // API Key 优先读 DPAPI 密文，兼容旧版明文；下次保存时自动迁移。
+    const QString protectedKey = root.value(QStringLiteral("apiKeyProtected")).toString();
+    if (!protectedKey.isEmpty())
+        m_config.apiKey = secrets::unprotect(protectedKey);
+    else
+        m_config.apiKey = root.value(QStringLiteral("apiKey")).toString();
     m_config.model = root.value(QStringLiteral("model")).toString(m_config.model);
     m_config.personaId = root.value(QStringLiteral("personaId")).toString();
     m_config.petX = root.value(QStringLiteral("petX")).toDouble(-1.0);
@@ -52,7 +59,11 @@ bool ConfigStore::save(QString *error)
     root.insert(QStringLiteral("version"), 2);
     root.insert(QStringLiteral("preset"), m_config.preset);
     root.insert(QStringLiteral("baseUrl"), m_config.baseUrl);
-    root.insert(QStringLiteral("apiKey"), m_config.apiKey);
+    const QString protectedKey = secrets::protect(m_config.apiKey);
+    if (!m_config.apiKey.isEmpty() && !protectedKey.isEmpty())
+        root.insert(QStringLiteral("apiKeyProtected"), protectedKey);
+    else if (!m_config.apiKey.isEmpty())
+        root.insert(QStringLiteral("apiKey"), m_config.apiKey);
     root.insert(QStringLiteral("model"), m_config.model);
     root.insert(QStringLiteral("personaId"), m_config.personaId);
     root.insert(QStringLiteral("petX"), m_config.petX);

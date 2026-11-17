@@ -7,6 +7,7 @@
 #include <QTimer>
 
 class ChatService;
+class ChatStore;
 class ConfigStore;
 class PersonaStore;
 
@@ -26,6 +27,7 @@ class Bridge : public QObject
     Q_PROPERTY(bool hasSavedPos READ hasSavedPos CONSTANT)
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY chatStateChanged)
+    Q_PROPERTY(bool autoStart READ autoStart WRITE setAutoStart NOTIFY autoStartChanged)
     Q_PROPERTY(QString personaName READ personaName NOTIFY settingsChanged)
     Q_PROPERTY(QString modelSummary READ modelSummary NOTIFY settingsChanged)
     Q_PROPERTY(bool llmReady READ llmReady NOTIFY settingsChanged)
@@ -60,6 +62,8 @@ public:
     bool hasSavedPos() const { return m_hasSavedPos; }
     QString statusText() const { return m_statusText; }
     bool busy() const;
+    bool autoStart() const;
+    void setAutoStart(bool enabled);
 
     QString personaName() const;
     QString modelSummary() const;
@@ -75,7 +79,7 @@ public:
     QString dataDir() const;
     QString logDir() const;
 
-    Q_INVOKABLE void petClicked(double x, double y);
+    Q_INVOKABLE void petClicked(double x, double y, double height);
     Q_INVOKABLE void setPetPosition(double x, double y);
     Q_INVOKABLE void openChat();
     Q_INVOKABLE void closeChat();
@@ -95,6 +99,7 @@ public:
     Q_INVOKABLE void selectPersona(const QString &personaId);
     Q_INVOKABLE void clearConversation();
     Q_INVOKABLE void stopReply();
+    Q_INVOKABLE QVariantList initialMessages() const;
 
     /// 预设的默认 Base URL / 模型，供设置页在下拉切换时自动填充。
     Q_INVOKABLE QVariantMap presetDefaults(const QString &preset) const;
@@ -113,6 +118,7 @@ signals:
     void settingsChanged();
     void personasChanged();
     void testResultChanged();
+    void autoStartChanged();
 
     void chatMessage(const QString &role, const QString &text);
     void chatDelta(const QString &text);
@@ -128,6 +134,7 @@ private:
 
     ConfigStore *m_config = nullptr;
     PersonaStore *m_personas = nullptr;
+    ChatStore *m_store = nullptr;
     ChatService *m_chat = nullptr;
     QTimer m_bubbleTimer;
     bool m_petVisible = true;

@@ -5,10 +5,12 @@
 #include <QObject>
 #include <QPair>
 #include <QString>
+#include <QVariantList>
 
 #include "chatengine.h"
 #include "llmclient.h"
 
+class ChatStore;
 class ConfigStore;
 class PersonaStore;
 
@@ -18,7 +20,7 @@ class ChatService : public QObject
     Q_OBJECT
 
 public:
-    ChatService(ConfigStore *config, PersonaStore *personas, QObject *parent = nullptr);
+    ChatService(ConfigStore *config, PersonaStore *personas, ChatStore *store, QObject *parent = nullptr);
 
     bool llmReady() const { return m_llm.ready(); }
     bool busy() const { return m_active; }
@@ -26,6 +28,12 @@ public:
     void send(const QString &text);
     void stop();
     void clearConversation();
+
+    /// 切人设：开一个新会话并清空上下文。
+    void switchPersona(const QString &personaId);
+
+    /// 启动时给聊天窗恢复的历史消息。
+    QVariantList initialMessages() const;
 
     /// 用给定的连接参数做一次 /models 连通性检查，结果通过 testFinished 返回。
     void testConnection(const QString &baseUrl, const QString &apiKey, const QString &model);
@@ -51,8 +59,11 @@ private:
     void appendHistory(const QString &role, const QString &content);
     QString systemPrompt() const;
 
+    void appendStored(const QString &role, const QString &content);
+
     ConfigStore *m_config = nullptr;
     PersonaStore *m_personas = nullptr;
+    ChatStore *m_store = nullptr;
     ChatEngine m_mock;
     LlmClient m_llm;
     QList<QPair<QString, QString>> m_history;

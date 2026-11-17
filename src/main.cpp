@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
             qInfo("window: %s", qPrintable(obj->objectName()));
         QTimer::singleShot(1200, &app, [&bridge] {
             bridge.openChat();
-            bridge.petClicked(420, 420);
+            bridge.petClicked(420, 420, 320);
             bridge.openManager();
         });
         QTimer::singleShot(1500, &app, [&bridge] { bridge.sendChat(QStringLiteral("你好")); });
@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
         qInfo("demo mode: dir=%s", qPrintable(demoDir));
         QTimer::singleShot(1200, &app, [&bridge] {
             bridge.openChat();
-            bridge.petClicked(420, 420);
+            bridge.petClicked(420, 420, 320);
         });
         QTimer::singleShot(1500, &app,
                            [&bridge] { bridge.sendChat(QStringLiteral("你好，请用一句话确认你能正常工作")); });

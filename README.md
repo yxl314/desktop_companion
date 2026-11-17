@@ -1,12 +1,12 @@
 # 桌面桌宠（desktop_companion）
 
-Windows 桌面 AI 桌宠原型。**0.2：真实模型对话（OpenAI 兼容流式）+ 人设 .md 导入 + 控制中心**。
+Windows 桌面 AI 桌宠原型。**0.3：SQLite 聊天记录持久化 + 命中区分区 + API Key DPAPI 加密 + 开机自启**。
 Qt 6.12 + QML + C++23（MSYS2 ucrt64，g++ 16）。
 
-## 0.2 已实现
+## 0.3 已实现
 
 - 透明、无边框、置顶桌宠窗口（占位形象 `resources/pet.png`），空闲时上下漂浮
-- 点击桌宠：头顶气泡说随机台词（4.2 秒自动隐藏），桌宠弹跳反馈
+- 点击桌宠：按**命中区**（头 / 身体 / 脚）说不同台词（4.2 秒自动隐藏），桌宠弹跳反馈
 - 拖拽：8px 阈值区分点击与拖拽，松手保存位置，下次启动恢复
 - 右键菜单：打开聊天 / 设置… / 隐藏桌宠 / 退出；托盘菜单同步
 - **真实模型对话**：OpenAI 兼容 `POST /chat/completions`，SSE 流式逐字显示
@@ -21,6 +21,9 @@ Qt 6.12 + QML + C++23（MSYS2 ucrt64，g++ 16）。
 - **单实例**：singleproc 锁 + 门铃；二次启动只通知主实例并弹气泡
 - **日志**：stacklog，落 `%APPDATA%/desktop_companion/desktop_companion/logs/`
 - **配置**：`config.json`（原子写，含版本号），存模型配置与人设选择
+- **API Key 加密**：Windows DPAPI（当前用户）加密后存 `apiKeyProtected`，旧明文配置读取时自动迁移
+- **聊天记录持久化**：SQLite（`chat.db`），启动自动恢复最近 20 条；清空对话删除当前会话；切人设自动开新会话
+- **开机自启**：控制中心「关于」页开关，写 HKCU Run 项
 - 验证模式：`--smoke <dir>` 抓各窗口；`--shot <dir>` 抓全屏；`--demo <dir>` 发消息等回复完成后抓窗口
 
 ## 依赖的仓库内基础库
@@ -40,7 +43,10 @@ ci.toml / standardize.toml / audit.toml / cxx_pkg.ini   # 三个工程管理工�
 .clang-format / .clang-tidy
 src/main.cpp             # 装配、托盘、单实例、日志、smoke/shot/demo 验证模式
 src/bridge.{h,cpp}       # QML ↔ C++ 桥接（命令 / 属性 / 信号）
-src/chatservice.{h,cpp}  # 对话调度：LLM 优先，未配置回退 mock，维护历史
+src/chatservice.{h,cpp}  # 对话调度：LLM 优先，未配置回退 mock，维护历史并落库
+src/chatstore.{h,cpp}    # SQLite 聊天记录（会话 / 消息 / meta）
+src/secretstore.{h,cpp}  # Windows DPAPI 加解密（API Key）
+src/autostart.{h,cpp}    # HKCU Run 开机自启
 src/llmclient.{h,cpp}    # OpenAI 兼容流式客户端 + /models 连通性检查
 src/sseparser.{h,cpp}    # SSE 增量解析（可单测）
 src/configstore.{h,cpp}  # config.json 原子读写
@@ -51,7 +57,7 @@ qml/Bubble.qml           # 气泡窗口（点击穿透）
 qml/Chat.qml             # 聊天窗口
 qml/Manager.qml          # 控制中心（模型 / 人设 / 关于）
 resources/pet.png        # 占位形象（透明 PNG，240x320）
-tests/                   # ChatEngine / SseParser / ConfigStore+PersonaStore 单测
+tests/                   # ChatEngine / SseParser / ChatStore / ConfigStore+PersonaStore+DPAPI+自启 单测
 third_party/             # stacklog、singleproc 源码
 scripts/                 # 占位图生成、本地 mock LLM 服务
 docs/                    # 设计文档、竞品参考、截图
@@ -105,21 +111,22 @@ python scripts/mock_llm_server.py 8765
 ## 数据位置
 
 ```
-%APPDATA%/desktop_companion/desktop_companion/config.json        模型配置、人设选择、桌宠位置
+%APPDATA%/desktop_companion/desktop_companion/config.json        模型配置（Key 为 DPAPI 密文）、人设选择、桌宠位置
+%APPDATA%/desktop_companion/desktop_companion/chat.db            SQLite 聊天记录（WAL）
 %APPDATA%/desktop_companion/desktop_companion/personas/*.md      导入的人设
 %APPDATA%/desktop_companion/desktop_companion/logs/              日志
 %APPDATA%/desktop_companion/desktop_companion/runtime/           单实例锁与门铃
 ```
 
-## 已知限制（0.2 原型）
+## 已知限制（0.3 原型）
 
-- 形象仍为占位图；命中区分区、点击穿透、贴边隐藏、悬浮球、多桌宠未做
-- 对话历史仅内存保存（20 条），未接 SQLite；重启后清空
-- 人设仅注入 system prompt，无记忆/好感度/角色包（zip/立绘/动作）
+- 形象仍为占位图；命中区为比例分区（非素材标注），点击穿透、贴边隐藏、悬浮球、多桌宠未做
+- 聊天记录只保存消息；记忆/好感度/摘要未做，LLM 上下文仍限最近 20 条
+- 人设仅注入 system prompt，无角色包（zip/立绘/动作/命中区素材）
 - 无快捷键、无自动更新、无多语言
-- 云端 API Key 明文存 config.json（本地工具，后续接 DPAPI）
+- 开机自启只写 HKCU Run，未做失败回滚提示
 
-## 下一步（0.3）
+## 下一步（0.4）
 
-SQLite 持久化（聊天记录 + 记忆）、命中区分区与拖拽动作、角色包导入导出、
-快捷键与贴边隐藏、控制中心完善。
+记忆系统（SQLite 记忆事件 + 摘要）、角色包（zip：人设 + 立绘 + 动作 + 命中区）、
+贴边隐藏与全局快捷键、拖拽甩动动作、控制中心完善。

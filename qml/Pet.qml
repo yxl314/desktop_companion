@@ -78,7 +78,7 @@ Window {
                 dragging = false
             } else {
                 tapAnimation.restart()
-                bridge.petClicked(root.x, root.y)
+                bridge.petClicked(root.x, root.y, root.height)
             }
         }
     }

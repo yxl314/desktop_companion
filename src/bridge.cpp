@@ -8,12 +8,15 @@
 #include <QMenu>
 #include <QRandomGenerator>
 #include <QScreen>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QVariantMap>
 
 #include <stacklog/stacklog.hpp>
 
 #include "chatservice.h"
+#include "autostart.h"
+#include "chatstore.h"
 #include "configstore.h"
 #include "personastore.h"
 
@@ -48,7 +51,8 @@ Bridge::Bridge(QObject *parent)
     : QObject(parent)
     , m_config(new ConfigStore())
     , m_personas(new PersonaStore())
-    , m_chat(new ChatService(m_config, m_personas, this))
+    , m_store(new ChatStore())
+    , m_chat(new ChatService(m_config, m_personas, m_store, this))
 {
     m_petX = m_config->values().petX;
     m_petY = m_config->values().petY;
@@ -131,6 +135,22 @@ void Bridge::setTestResult(const QString &text)
 bool Bridge::busy() const
 {
     return m_chat->busy();
+}
+
+bool Bridge::autoStart() const
+{
+    return autostart::enabled();
+}
+
+void Bridge::setAutoStart(bool enabled)
+{
+    autostart::setEnabled(enabled);
+    emit autoStartChanged();
+}
+
+QVariantList Bridge::initialMessages() const
+{
+    return m_chat->initialMessages();
 }
 
 QString Bridge::personaName() const
@@ -240,11 +260,29 @@ QVariantMap Bridge::presetDefaults(const QString &preset) const
     return defaults;
 }
 
-void Bridge::petClicked(double x, double y)
+void Bridge::petClicked(double x, double y, double height)
 {
-    STACKLOG_DEBUG() << "pet clicked at " << x << "," << y;
-    const QStringList lines = idleLines();
-    m_bubbleText = lines.at(QRandomGenerator::global()->bounded(lines.size()));
+    static const QStringList headLines = {
+        QStringLiteral("别摸头啦～"),
+        QStringLiteral("头好痒…"),
+        QStringLiteral("摸头会长高的！"),
+    };
+    static const QStringList bodyLines = idleLines();
+    static const QStringList feetLines = {
+        QStringLiteral("别戳脚，站不稳啦！"),
+        QStringLiteral("要摔倒了——"),
+        QStringLiteral("脚底痒痒的～"),
+    };
+
+    const double ratio = height > 0.0 ? y / height : 0.5;
+    const QStringList *lines = &bodyLines;
+    if (ratio < 0.32)
+        lines = &headLines;
+    else if (ratio > 0.72)
+        lines = &feetLines;
+    STACKLOG_DEBUG() << "pet clicked at " << x << "," << y << " ratio=" << ratio;
+
+    m_bubbleText = lines->at(QRandomGenerator::global()->bounded(lines->size()));
     emit bubbleTextChanged();
     positionBubble(x, y);
     setBubbleVisible(true);
@@ -361,7 +399,7 @@ void Bridge::selectPersona(const QString &personaId)
 {
     m_config->setPersonaId(personaId);
     m_config->save();
-    m_chat->clearConversation();
+    m_chat->switchPersona(personaId);
     emit settingsChanged();
     emit personasChanged();
     setStatusText(QStringLiteral("已切换人设：%1").arg(personaName()));

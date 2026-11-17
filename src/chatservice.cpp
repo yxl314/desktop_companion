@@ -3,6 +3,7 @@
 #include <QJsonObject>
 
 #include "configstore.h"
+#include "chatstore.h"
 #include "personastore.h"
 
 namespace
@@ -10,11 +11,18 @@ namespace
 constexpr int maxHistoryMessages = 20;
 } // namespace
 
-ChatService::ChatService(ConfigStore *config, PersonaStore *personas, QObject *parent)
+ChatService::ChatService(ConfigStore *config, PersonaStore *personas, ChatStore *store, QObject *parent)
     : QObject(parent)
     , m_config(config)
     , m_personas(personas)
+    , m_store(store)
 {
+    if (m_store != nullptr) {
+        m_store->ensureConversation(m_config->values().personaId);
+        for (const StoredMessage &message : m_store->recentMessages(maxHistoryMessages))
+            m_history.append(qMakePair(message.role, message.content));
+    }
+
     connect(&m_mock, &ChatEngine::delta, this, [this](const QString &text) {
         if (!m_active || m_source != Source::Mock)
             return;
@@ -29,6 +37,7 @@ ChatService::ChatService(ConfigStore *config, PersonaStore *personas, QObject *p
         if (!m_active || m_source != Source::Mock)
             return;
         appendHistory(QStringLiteral("assistant"), m_partial);
+        appendStored(QStringLiteral("assistant"), m_partial);
         m_active = false;
         m_source = Source::None;
         emit done();
@@ -47,6 +56,7 @@ ChatService::ChatService(ConfigStore *config, PersonaStore *personas, QObject *p
         if (!m_active || m_source != Source::Llm)
             return;
         appendHistory(QStringLiteral("assistant"), m_partial);
+        appendStored(QStringLiteral("assistant"), m_partial);
         m_active = false;
         m_source = Source::None;
         emit done();
@@ -61,6 +71,30 @@ ChatService::ChatService(ConfigStore *config, PersonaStore *personas, QObject *p
         emit stateChanged(QStringLiteral("idle"));
         emit failed(message);
     });
+}
+
+void ChatService::appendStored(const QString &role, const QString &content)
+{
+    if (m_store != nullptr)
+        m_store->appendMessage(role, content);
+}
+
+QVariantList ChatService::initialMessages() const
+{
+    QVariantList result;
+    for (const auto &entry : m_history) {
+        result.append(QVariantMap{{QStringLiteral("role"), entry.first},
+                                  {QStringLiteral("text"), entry.second}});
+    }
+    return result;
+}
+
+void ChatService::switchPersona(const QString &personaId)
+{
+    if (m_store != nullptr)
+        m_store->newConversation(personaId);
+    m_history.clear();
+    emit conversationCleared();
 }
 
 void ChatService::appendHistory(const QString &role, const QString &content)
@@ -85,6 +119,7 @@ void ChatService::send(const QString &text)
 
     m_active = true;
     m_partial.clear();
+    appendStored(QStringLiteral("user"), trimmed);
     emit userMessage(trimmed);
 
     m_llm.configure(m_config->values().baseUrl, m_config->values().apiKey, m_config->values().model);
@@ -119,6 +154,7 @@ void ChatService::stop()
     if (m_source == Source::Llm) {
         m_llm.abort();
         appendHistory(QStringLiteral("assistant"), m_partial);
+        appendStored(QStringLiteral("assistant"), m_partial);
         m_active = false;
         m_source = Source::None;
         emit done();
@@ -131,6 +167,8 @@ void ChatService::stop()
 void ChatService::clearConversation()
 {
     m_history.clear();
+    if (m_store != nullptr)
+        m_store->clearCurrentMessages();
     emit conversationCleared();
 }
 

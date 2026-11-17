@@ -5,6 +5,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include "autostart.h"
 #include "configstore.h"
 #include "personastore.h"
 
@@ -58,6 +59,48 @@ void TestConfig::personaImportAndRemove()
     QVERIFY(store.remove(QStringLiteral("cat")));
     QCOMPARE(store.personas().size(), 1);
     QVERIFY(!store.remove(QStringLiteral("builtin-default")));
+}
+
+void TestConfig::apiKeyIsEncrypted()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.path() + QStringLiteral("/config.json");
+
+    ConfigStore store(path);
+    store.setLlm(QStringLiteral("OpenAI"), QStringLiteral("https://api.example.com/v1"),
+                 QStringLiteral("super-secret-key"), QStringLiteral("gpt-test"));
+    QString error;
+    QVERIFY2(store.save(&error), qPrintable(error));
+
+    QFile raw(path);
+    QVERIFY(raw.open(QIODevice::ReadOnly));
+    const QByteArray content = raw.readAll();
+    raw.close();
+
+#ifdef Q_OS_WIN
+    // DPAPI 密文不应包含明文 key。
+    QVERIFY(!content.contains("super-secret-key"));
+    QVERIFY(content.contains("apiKeyProtected"));
+#else
+    QVERIFY(content.contains("super-secret-key"));
+#endif
+
+    ConfigStore reloaded(path);
+    QCOMPARE(reloaded.values().apiKey, QStringLiteral("super-secret-key"));
+}
+
+void TestConfig::autoStartRoundTrip()
+{
+#ifdef Q_OS_WIN
+    const bool initial = autostart::enabled();
+    autostart::setEnabled(true, QStringLiteral("C:/tmp/desktop_companion.exe"));
+    QVERIFY(autostart::enabled());
+    autostart::setEnabled(false);
+    QVERIFY(!autostart::enabled());
+    if (initial)
+        autostart::setEnabled(true, QStringLiteral("C:/tmp/desktop_companion.exe"));
+#endif
 }
 
 QTEST_GUILESS_MAIN(TestConfig)

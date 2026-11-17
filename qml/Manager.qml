@@ -251,6 +251,11 @@ Window {
                     Button { text: qsTr("打开数据目录"); onClicked: bridge.openDataFolder() }
                     Button { text: qsTr("打开日志目录"); onClicked: bridge.openLogFolder() }
                 }
+                CheckBox {
+                    text: qsTr("开机自动启动")
+                    checked: bridge.autoStart
+                    onToggled: bridge.autoStart = checked
+                }
                 Item { Layout.fillHeight: true }
             }
         }
