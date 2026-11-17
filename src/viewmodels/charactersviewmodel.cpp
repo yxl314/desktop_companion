@@ -111,6 +111,7 @@ void CharactersViewModel::importPack()
                                 result.error);
                     return;
                 }
+                refresh();
                 setStatus(tr("已导入角色：%1").arg(result.characterId));
             });
     watcher->setFuture(characterpack::importPackAsync(path, m_characters->charactersDir()));

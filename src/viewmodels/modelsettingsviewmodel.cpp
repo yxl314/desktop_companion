@@ -172,9 +172,12 @@ void ModelSettingsViewModel::testConnection()
 
 void ModelSettingsViewModel::save()
 {
+    // setLlm() 的 changed() 会同步 reloadFromConfig() 覆盖编辑中的生成参数，先存局部值。
+    const double temperature = m_temperature;
+    const int maxTokens = m_maxTokens;
     m_config->setLlm(presetNames().value(m_presetIndex), m_baseUrl.trimmed(), m_apiKey.trimmed(),
                      m_model.trimmed());
-    m_config->setGeneration(m_temperature, m_maxTokens);
+    m_config->setGeneration(temperature, maxTokens);
     QString error;
     if (!m_config->save(&error)) {
         reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);

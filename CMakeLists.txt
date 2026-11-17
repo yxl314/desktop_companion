@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(desktop_companion VERSION 1.1.0 LANGUAGES CXX)
+project(desktop_companion VERSION 1.1.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -294,3 +294,30 @@ if(WIN32)
     target_link_libraries(test_config PRIVATE Crypt32)
 endif()
 add_test(NAME config COMMAND test_config)
+
+# ---- ViewModel 单元测试（MVVM 层） ----
+qt_add_executable(test_viewmodels
+    tests/test_viewmodels.cpp tests/test_viewmodels.h
+    ${DESKTOP_COMPANION_VIEWMODEL_SOURCES}
+    ${DESKTOP_COMPANION_DATA_SOURCES}
+    ${DESKTOP_COMPANION_SERVICES_SOURCES}
+    ${DESKTOP_COMPANION_SRC_DIR}/platform/hitareameta.h
+    ${DESKTOP_COMPANION_SRC_DIR}/platform/hitareameta.cpp
+)
+target_include_directories(test_viewmodels PRIVATE ${DESKTOP_COMPANION_INCLUDE_DIRS})
+target_compile_definitions(test_viewmodels PRIVATE
+    DESKTOP_COMPANION_VERSION="${PROJECT_VERSION}")
+target_link_libraries(test_viewmodels PRIVATE
+    Qt6::Test Qt6::Core Qt6::Network Qt6::Widgets
+    SQLite::SQLite3 stacklog::stacklog)
+if(WIN32)
+    target_link_libraries(test_viewmodels PRIVATE Crypt32)
+endif()
+add_test(NAME viewmodels COMMAND test_viewmodels)
+
+# 架构分层静态校验（可选：需要 Python3）。
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME architecture_check
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/architecture_check.py)
+endif()

@@ -256,6 +256,16 @@ Item {
     Component.onCompleted: {
         nameCard.text = personasVM.editName
         bodyCard.text = personasVM.editBody
+        // 打开页面时自动载入当前人设，直接进入编辑态。
+        if (!personasVM.editing) {
+            for (let i = 0; i < personasVM.personas.length; ++i) {
+                const row = personasVM.personas[i]
+                if (row.current === true) {
+                    personasVM.loadFor(row.id)
+                    break
+                }
+            }
+        }
     }
 
     // VM → 编辑器字段（不在聚焦时打断输入）
