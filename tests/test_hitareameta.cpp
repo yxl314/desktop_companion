@@ -8,7 +8,7 @@
 #include <QVariantMap>
 #include <QtTest>
 
-#include "hitareameta.h"
+#include "platform/hitareameta.h"
 
 namespace
 {

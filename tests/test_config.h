@@ -10,6 +10,7 @@ class TestConfig : public QObject
 private slots:
     void savesAndLoads();
     void personaImportAndRemove();
+    void personaImportAsync();
     void apiKeyIsEncrypted();
     void autoStartRoundTrip();
     void corruptConfigFallsBack();

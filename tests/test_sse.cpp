@@ -2,7 +2,7 @@
 
 #include <QtTest>
 
-#include "sseparser.h"
+#include "services/sseparser.h"
 
 void TestSse::parsesDeltas()
 {

@@ -8,7 +8,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
-#include "intimacyservice.h"
+#include "data/intimacyrepository.h"
 
 void TestIntimacy::defaultStateAndLevelThresholds()
 {

@@ -17,6 +17,8 @@ private slots:
     void preservesUnknownMetaFields();
     void corruptMetaFails();
     void importsAvatars();
+    void importsAvatarsAsync();
+    void worldPeerSummariesForSameWorld();
     void managesPersonas();
 };
 

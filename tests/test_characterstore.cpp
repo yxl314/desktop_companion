@@ -4,10 +4,11 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
 
-#include "characterstore.h"
+#include "data/characterstore.h"
 
 namespace
 {
@@ -352,6 +353,82 @@ void TestCharacterStore::importsAvatars()
     error.clear();
     QVERIFY(!store.importAvatar(QStringLiteral("不存在"), source, &stored, &error));
     QVERIFY(!error.isEmpty());
+}
+
+void TestCharacterStore::importsAvatarsAsync()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    CharacterStore store(dir.path());
+
+    QString id;
+    QString error;
+    QVERIFY2(store.create(QStringLiteral("小柚"), &id, &error), qPrintable(error));
+
+    const QString source = dir.path() + QStringLiteral("/async.png");
+    QVERIFY(writeBytesFile(source, QByteArray("\x89PNG\r\n\x1a\n", 8)));
+
+    QSignalSpy spy(&store, &CharacterStore::changed);
+    QFuture<AvatarImportResult> future = store.importAvatarAsync(id, source);
+    future.waitForFinished();
+    const AvatarImportResult result = future.result();
+    QVERIFY2(result.ok, qPrintable(result.error));
+    QVERIFY(QFile::exists(result.storedPath));
+    QCOMPARE(store.avatars(id).size(), 1);
+
+    // changed() 由异步入口在工作线程完成后回到对象所属线程发出。
+    QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 3000);
+
+    // 异步入口保留同步版的错误码文案。
+    future = store.importAvatarAsync(id, dir.path() + QStringLiteral("/missing.png"));
+    future.waitForFinished();
+    QVERIFY(!future.result().ok);
+    QVERIFY(!future.result().error.isEmpty());
+}
+
+void TestCharacterStore::worldPeerSummariesForSameWorld()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    CharacterStore store(dir.path());
+
+    QString currentId;
+    QString peachId;
+    QString outsiderId;
+    QString disabledId;
+    QString error;
+    QVERIFY2(store.create(QStringLiteral("小柚"), &currentId, &error), qPrintable(error));
+    QVERIFY2(store.create(QStringLiteral("阿桃"), &peachId, &error), qPrintable(error));
+    QVERIFY2(store.create(QStringLiteral("阿岚"), &outsiderId, &error), qPrintable(error));
+    QVERIFY2(store.create(QStringLiteral("小铃"), &disabledId, &error), qPrintable(error));
+
+    QVERIFY2(store.setWorldId(currentId, QStringLiteral("云上小镇"), &error), qPrintable(error));
+    QVERIFY2(store.setWorldId(peachId, QStringLiteral("云上小镇"), &error), qPrintable(error));
+    QVERIFY2(store.setWorldId(disabledId, QStringLiteral("云上小镇"), &error), qPrintable(error));
+
+    PersonaData card;
+    card.name = QStringLiteral("小柚");
+    card.body = QStringLiteral("住在时钟塔的小精灵。\n更多设定。");
+    QVERIFY2(store.saveCard(currentId, card, &error), qPrintable(error));
+    card.name = QStringLiteral("阿桃");
+    card.body = QStringLiteral("# 守钟人\n喜欢在钟楼打盹。");
+    QVERIFY2(store.saveCard(peachId, card, &error), qPrintable(error));
+
+    // 停用角色不参与同世界观互知。
+    CharacterMeta meta;
+    QVERIFY2(store.meta(disabledId, &meta, &error), qPrintable(error));
+    meta.enabled = false;
+    QVERIFY2(store.saveMeta(disabledId, meta, &error), qPrintable(error));
+
+    const QStringList peers = store.worldPeerSummaries(QStringLiteral("云上小镇"), currentId);
+    QCOMPARE(peers, QStringList{QStringLiteral("阿桃（守钟人）")});
+
+    // 空世界 id、没有同世界伙伴时为空列表。
+    QVERIFY(store.worldPeerSummaries(QString(), currentId).isEmpty());
+    QVERIFY(store.worldPeerSummaries(QStringLiteral("不存在"), currentId).isEmpty());
+
+    // excludeId 为空时包含当前角色自身。
+    QCOMPARE(store.worldPeerSummaries(QStringLiteral("云上小镇"), QString()).size(), 2);
 }
 
 void TestCharacterStore::managesPersonas()

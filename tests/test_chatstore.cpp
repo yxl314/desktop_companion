@@ -3,7 +3,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
-#include "chatstore.h"
+#include "data/chatstore.h"
 
 void TestChatStore::persistsMessages()
 {

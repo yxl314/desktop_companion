@@ -12,6 +12,7 @@ private slots:
     void rejectsInvalidOrDuplicateNames();
     void readsAndWritesContent();
     void importsExternalWorld();
+    void importsExternalWorldAsync();
     void renamesWorld();
     void removesWorld();
     void corruptWorldSkipped();

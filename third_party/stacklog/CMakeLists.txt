@@ -12,14 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-# 平台端口：核心 stacklog.cpp 不含平台宏，适配器按平台二选一编译。
-if(WIN32)
-    set(STACKLOG_PLATFORM_SOURCE src/platform_win32.cpp)
-else()
-    set(STACKLOG_PLATFORM_SOURCE src/platform_posix.cpp)
-endif()
-
-add_library(stacklog STATIC src/stacklog.cpp ${STACKLOG_PLATFORM_SOURCE})
+add_library(stacklog STATIC src/stacklog.cpp)
 add_library(stacklog::stacklog ALIAS stacklog)
 
 # 静态库也要位置无关：本库持有 thread_local 状态，被链进共享对象（例如

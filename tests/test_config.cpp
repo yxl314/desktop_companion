@@ -2,12 +2,13 @@
 
 #include <QDir>
 #include <QFile>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
 
-#include "autostart.h"
-#include "configstore.h"
-#include "personastore.h"
+#include "services/autostart.h"
+#include "data/configstore.h"
+#include "data/personastore.h"
 
 void TestConfig::savesAndLoads()
 {
@@ -60,6 +61,43 @@ void TestConfig::personaImportAndRemove()
     QVERIFY(store.remove(QStringLiteral("cat")));
     QCOMPARE(store.personas().size(), 1);
     QVERIFY(!store.remove(QStringLiteral("builtin-default")));
+}
+
+
+void TestConfig::personaImportAsync()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    PersonaStore store(dir.path());
+
+    QDir().mkpath(dir.path() + QStringLiteral("/import"));
+    const QString source = dir.path() + QStringLiteral("/import/dog.md");
+    QFile file(source);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write(QStringLiteral("# 小狗\n你是小狗，说话要汪汪叫。").toUtf8());
+    file.close();
+
+    QSignalSpy spy(&store, &PersonaStore::changed);
+    QFuture<PersonaImportResult> future = store.importFromAsync(source);
+    future.waitForFinished();
+    const PersonaImportResult result = future.result();
+    QVERIFY2(result.ok, qPrintable(result.error));
+
+    // changed() 由异步入口在对象所属线程发出后，列表才更新。
+    QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 3000);
+    QCOMPARE(store.personas().size(), 2);
+    QCOMPARE(store.find(QStringLiteral("dog")).name, QStringLiteral("小狗"));
+
+    // 同步入口仍然可用。
+    QString error;
+    QDir().mkpath(dir.path() + QStringLiteral("/import2"));
+    const QString second = dir.path() + QStringLiteral("/import2/fox.md");
+    QFile secondFile(second);
+    QVERIFY(secondFile.open(QIODevice::WriteOnly));
+    secondFile.write(QStringLiteral("# 狐狸").toUtf8());
+    secondFile.close();
+    QVERIFY2(store.importFrom(second, &error), qPrintable(error));
+    QCOMPARE(store.personas().size(), 3);
 }
 
 void TestConfig::apiKeyIsEncrypted()

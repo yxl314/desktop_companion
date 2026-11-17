@@ -2,7 +2,7 @@
 
 #include <QtTest>
 
-#include "errorcodes.h"
+#include "services/errorcodes.h"
 
 void TestErrorCodes::formatsCode()
 {

@@ -4,7 +4,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
-#include "personafile.h"
+#include "services/personafile.h"
 
 namespace
 {
@@ -195,6 +195,36 @@ void TestPersonaFile::sanitizesFileIds()
     QCOMPARE(sanitizeFileId(QStringLiteral("...")), QString());
     QCOMPARE(sanitizeFileId(QStringLiteral("CON")), QStringLiteral("_CON"));
     QCOMPARE(sanitizeFileId(QStringLiteral("ok-name_1")), QStringLiteral("ok-name_1"));
+}
+
+
+void TestPersonaFile::asyncParseMatchesSync()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.path() + QStringLiteral("/async.md");
+    QVERIFY(writeUtf8File(path, QStringLiteral("---\nname: 异步人设\n---\n\n正文。\n").toUtf8()));
+
+    PersonaData syncData;
+    QString syncError;
+    QVERIFY2(parsePersonaFile(path, &syncData, &syncError), qPrintable(syncError));
+
+    QFuture<PersonaParseResult> future = parsePersonaFileAsync(path);
+    future.waitForFinished();
+    const PersonaParseResult result = future.result();
+    QVERIFY2(result.ok, qPrintable(result.error));
+    QCOMPARE(result.data.name, syncData.name);
+    QCOMPARE(result.data.body, syncData.body);
+    QCOMPARE(result.data.id, syncData.id);
+
+    // 失败分支文案与同步版一致。
+    PersonaData ignored;
+    QString missingError;
+    QVERIFY(!parsePersonaFile(dir.path() + QStringLiteral("/missing.md"), &ignored, &missingError));
+    QFuture<PersonaParseResult> missing = parsePersonaFileAsync(dir.path() + QStringLiteral("/missing.md"));
+    missing.waitForFinished();
+    QVERIFY(!missing.result().ok);
+    QCOMPARE(missing.result().error, missingError);
 }
 
 QTEST_GUILESS_MAIN(TestPersonaFile)

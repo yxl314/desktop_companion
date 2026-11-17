@@ -9,6 +9,7 @@ class TestPromptBuilder : public QObject
 
 private slots:
     void sectionsInFixedOrder();
+    void worldPeersRenderedAfterWorld();
     void emptySectionsSkipped();
     void identityFallsBackToCharacterId();
     void memoriesRendered();

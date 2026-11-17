@@ -16,6 +16,7 @@ private slots:
     void malformedFrontmatterFails();
     void rendersRoundTrip();
     void sanitizesFileIds();
+    void asyncParseMatchesSync();
 };
 
 #endif // TEST_PERSONAFILE_H

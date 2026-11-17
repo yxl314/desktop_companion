@@ -1,6 +1,7 @@
 #include <singleproc/singleproc.hpp>
 
 #include <string>
+#include <unistd.h>
 
 int main(int argc, char** argv)
 {
@@ -9,9 +10,8 @@ int main(int argc, char** argv)
         return 3;
     }
 
-    // 安装验证只需要证明 find_package 后的消费端能构建并运行；
-    // key 固定即可，旧锁文件复用不影响单实例语义。
-    const singleproc::Guard guard("consumer-install-test", argv[1]);
+    const std::string key = "consumer-" + std::to_string(static_cast<long long>(::getpid()));
+    const singleproc::Guard guard(key, argv[1]);
     if (guard.state() == singleproc::Guard::State::Error)
     {
         return 2;

@@ -11,6 +11,7 @@ private slots:
     void exportImportRoundTrip();
     void rejectsIncompletePack();
     void rejectsExistingCharacter();
+    void asyncImportExportRoundTrip();
 };
 
 #endif // TEST_CHARACTERPACK_H

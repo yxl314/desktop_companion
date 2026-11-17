@@ -1,0 +1,3 @@
+# qml/theme/qmldir
+# Theme 设计 Token 单例注册表（目录导入 import "../theme" 时生效）。
+singleton Theme 1.0 Theme.qml

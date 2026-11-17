@@ -2,10 +2,11 @@
 
 #include <QDir>
 #include <QFile>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
 
-#include "worldstore.h"
+#include "data/worldstore.h"
 
 namespace
 {
@@ -174,6 +175,34 @@ void TestWorldStore::importsExternalWorld()
     error.clear();
     QVERIFY(!store.importFrom(badPath, &id, &error));
     QVERIFY(!error.isEmpty());
+}
+
+
+void TestWorldStore::importsExternalWorldAsync()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    WorldStore store(dir.path());
+
+    const QString path = dir.path() + QStringLiteral("/异步大陆.md");
+    QVERIFY(writeUtf8File(path, QStringLiteral("---\nname: 异步大陆\n---\n\n这里有龙。\n").toUtf8()));
+
+    QSignalSpy spy(&store, &WorldStore::changed);
+    QFuture<WorldImportResult> future = store.importFromAsync(path);
+    future.waitForFinished();
+    const WorldImportResult result = future.result();
+    QVERIFY2(result.ok, qPrintable(result.error));
+    QCOMPARE(result.worldId, store.list().first().id);
+    QCOMPARE(store.list().first().content, QStringLiteral("这里有龙。"));
+
+    // changed() 回到对象所属线程发出。
+    QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 3000);
+
+    // 异步入口保留同步版的错误文案（重复导入同名世界观应失败）。
+    QFuture<WorldImportResult> duplicate = store.importFromAsync(path);
+    duplicate.waitForFinished();
+    QVERIFY(!duplicate.result().ok);
+    QVERIFY(duplicate.result().error.contains(QStringLiteral("已存在")));
 }
 
 void TestWorldStore::renamesWorld()

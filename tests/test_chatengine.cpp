@@ -4,7 +4,7 @@
 #include <QString>
 #include <QtTest>
 
-#include "chatengine.h"
+#include "services/chatengine.h"
 
 void TestChatEngine::replyContainsExpectedLine()
 {

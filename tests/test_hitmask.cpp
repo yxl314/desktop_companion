@@ -8,7 +8,7 @@
 #include <QSize>
 #include <QtTest>
 
-#include "hitmask.h"
+#include "platform/hitmask.h"
 
 namespace
 {

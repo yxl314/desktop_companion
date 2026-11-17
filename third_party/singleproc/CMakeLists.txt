@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(singleproc
-    VERSION 0.3.0
-    DESCRIPTION "Linux/POSIX 与 Windows 单实例运行库"
+    VERSION 0.2.0
+    DESCRIPTION "Linux/POSIX 单实例运行库"
     LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -12,15 +12,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-# 平台实现一次只编译一个：Linux/POSIX 用 flock + Unix socket，
-# Windows 用 LockFileEx + 命名管道。业务逻辑不出现平台宏分支。
 if(WIN32)
-    set(SINGLEPROC_PLATFORM_SOURCE src/platform_win32.cpp)
+    add_library(singleproc STATIC src/singleproc_win32.cpp)
 else()
-    set(SINGLEPROC_PLATFORM_SOURCE src/platform_posix.cpp)
+    add_library(singleproc STATIC src/singleproc.cpp)
 endif()
-
-add_library(singleproc STATIC src/singleproc.cpp ${SINGLEPROC_PLATFORM_SOURCE})
 add_library(singleproc::singleproc ALIAS singleproc)
 target_compile_features(singleproc PUBLIC cxx_std_11)
 
@@ -30,17 +26,11 @@ target_include_directories(singleproc PUBLIC
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(singleproc PRIVATE -Wall -Wextra -Wpedantic)
-elseif(MSVC)
-    # 源码含中文注释与中文错误文本，必须显式声明 UTF-8，否则 MSVC 按系统
-    # 代码页（如 CP936）解析会报 C4819 并可能让字符串乱码。不加 /WX。
-    target_compile_options(singleproc PRIVATE /W4 /utf-8)
 endif()
 
-if(WIN32)
-    # 用户 SID、SDDL 安全描述符来自 advapi32；静态库把依赖传给下游。
-    target_link_libraries(singleproc PUBLIC advapi32)
-endif()
-
+# 作为子项目（add_subdirectory）使用时只提供构建目标，不生成安装与
+# CMake 包配置文件，避免打包工具的暂存前缀影响配置阶段。
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 install(TARGETS singleproc
     EXPORT singleprocTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -61,7 +51,7 @@ configure_package_config_file(
     ${CMAKE_CURRENT_BINARY_DIR}/singleprocConfig.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/singleproc)
 
-# 0.x 阶段 minor 版本仍可能调整 API，因此只保证同一 minor 内兼容；
+# 0.x 阶段 minor 版本仍可能调整 API，因此只保证 0.2.x 之间兼容；
 # 1.0 后再切回 SameMajorVersion。
 write_basic_package_version_file(
     ${CMAKE_CURRENT_BINARY_DIR}/singleprocConfigVersion.cmake
@@ -73,9 +63,15 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/singleprocConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/singleproc)
 
+endif()
+
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     set(SINGLEPROC_DEFAULT_TESTS ON)
     set(SINGLEPROC_DEFAULT_EXAMPLES ON)
+    if(WIN32)
+        # 测试用例依赖 fork/exec 与 POSIX 信号语义，Windows 上默认不构建。
+        set(SINGLEPROC_DEFAULT_TESTS OFF)
+    endif()
 else()
     set(SINGLEPROC_DEFAULT_TESTS OFF)
     set(SINGLEPROC_DEFAULT_EXAMPLES OFF)
@@ -92,7 +88,4 @@ endif()
 if(SINGLEPROC_BUILD_EXAMPLES)
     add_executable(singleproc_example_basic examples/basic.cpp)
     target_link_libraries(singleproc_example_basic PRIVATE singleproc::singleproc)
-    if(MSVC)
-        target_compile_options(singleproc_example_basic PRIVATE /W4 /utf-8)
-    endif()
 endif()

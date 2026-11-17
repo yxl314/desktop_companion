@@ -4,7 +4,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
-#include "memorystore.h"
+#include "data/memorystore.h"
 
 void TestMemoryStore::addListAndCount()
 {
