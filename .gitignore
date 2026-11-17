@@ -1,0 +1,15 @@
+# 构建产物
+build/
+build-*/
+*.user
+*.autosave
+
+# Qt/QML 生成
+*.qm
+.qmlc
+*.qmlc
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
