@@ -17,6 +17,16 @@ qt_add_executable(desktop_companion WIN32
     src/chatengine.h src/chatengine.cpp
     src/chatservice.h src/chatservice.cpp
     src/chatstore.h src/chatstore.cpp
+    src/characterpack.h src/characterpack.cpp
+    src/characterstore.h src/characterstore.cpp
+    src/errorcodes.h src/errorcodes.cpp
+    src/hitareameta.h src/hitareameta.cpp
+    src/hitmask.h src/hitmask.cpp
+    src/intimacyservice.h src/intimacyservice.cpp
+    src/memorystore.h src/memorystore.cpp
+    src/personafile.h src/personafile.cpp
+    src/promptbuilder.h src/promptbuilder.cpp
+    src/worldstore.h src/worldstore.cpp
     src/configstore.h src/configstore.cpp
     src/llmclient.h src/llmclient.cpp
     src/personastore.h src/personastore.cpp
@@ -75,6 +85,69 @@ qt_add_executable(test_chatstore tests/test_chatstore.cpp tests/test_chatstore.h
 target_include_directories(test_chatstore PRIVATE src)
 target_link_libraries(test_chatstore PRIVATE Qt6::Test SQLite::SQLite3 stacklog::stacklog)
 add_test(NAME chatstore COMMAND test_chatstore)
+
+qt_add_executable(test_errorcodes tests/test_errorcodes.cpp tests/test_errorcodes.h
+    src/errorcodes.h src/errorcodes.cpp)
+target_include_directories(test_errorcodes PRIVATE src)
+target_link_libraries(test_errorcodes PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME errorcodes COMMAND test_errorcodes)
+
+qt_add_executable(test_characterpack tests/test_characterpack.cpp tests/test_characterpack.h
+    src/characterpack.h src/characterpack.cpp)
+target_include_directories(test_characterpack PRIVATE src)
+target_link_libraries(test_characterpack PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME characterpack COMMAND test_characterpack)
+
+qt_add_executable(test_personafile tests/test_personafile.cpp tests/test_personafile.h
+    src/personafile.h src/personafile.cpp)
+target_include_directories(test_personafile PRIVATE src)
+target_link_libraries(test_personafile PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME personafile COMMAND test_personafile)
+
+qt_add_executable(test_characterstore tests/test_characterstore.cpp tests/test_characterstore.h
+    src/characterstore.h src/characterstore.cpp
+    src/personafile.h src/personafile.cpp)
+target_include_directories(test_characterstore PRIVATE src)
+target_link_libraries(test_characterstore PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME characterstore COMMAND test_characterstore)
+
+qt_add_executable(test_worldstore tests/test_worldstore.cpp tests/test_worldstore.h
+    src/worldstore.h src/worldstore.cpp
+    src/characterstore.h src/characterstore.cpp
+    src/personafile.h src/personafile.cpp)
+target_include_directories(test_worldstore PRIVATE src)
+target_link_libraries(test_worldstore PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME worldstore COMMAND test_worldstore)
+
+qt_add_executable(test_hitmask tests/test_hitmask.cpp tests/test_hitmask.h
+    src/hitmask.h src/hitmask.cpp)
+target_include_directories(test_hitmask PRIVATE src)
+target_link_libraries(test_hitmask PRIVATE Qt6::Test Qt6::Gui)
+add_test(NAME hitmask COMMAND test_hitmask)
+
+qt_add_executable(test_hitareameta tests/test_hitareameta.cpp tests/test_hitareameta.h
+    src/hitareameta.h src/hitareameta.cpp)
+target_include_directories(test_hitareameta PRIVATE src)
+target_link_libraries(test_hitareameta PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME hitareameta COMMAND test_hitareameta)
+
+qt_add_executable(test_memorystore tests/test_memorystore.cpp tests/test_memorystore.h
+    src/memorystore.h src/memorystore.cpp)
+target_include_directories(test_memorystore PRIVATE src)
+target_link_libraries(test_memorystore PRIVATE Qt6::Test Qt6::Core SQLite::SQLite3)
+add_test(NAME memorystore COMMAND test_memorystore)
+
+qt_add_executable(test_promptbuilder tests/test_promptbuilder.cpp tests/test_promptbuilder.h
+    src/promptbuilder.h src/promptbuilder.cpp)
+target_include_directories(test_promptbuilder PRIVATE src)
+target_link_libraries(test_promptbuilder PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME promptbuilder COMMAND test_promptbuilder)
+
+qt_add_executable(test_intimacy tests/test_intimacy.cpp tests/test_intimacy.h
+    src/intimacyservice.h src/intimacyservice.cpp)
+target_include_directories(test_intimacy PRIVATE src)
+target_link_libraries(test_intimacy PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME intimacy COMMAND test_intimacy)
 
 qt_add_executable(test_config tests/test_config.cpp tests/test_config.h
     src/autostart.h src/autostart.cpp
