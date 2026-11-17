@@ -24,6 +24,7 @@ struct AppConfig
     int proactiveFrequency = 0; // 0 关 1 低 2 中 3 高
     int mode = 0; // 0 休闲 1 工作 2 勿扰
     int theme = 0; // 0 浅色 1 深色 2 跟随系统
+    int language = 2; // 0 中文 1 English 2 跟随系统
     bool ballVisible = true;
     double ballX = -1.0;
     double ballY = -1.0;
@@ -55,6 +56,7 @@ public:
     void setPetCharacter(int index, const QString &characterId);
     void setMode(int mode);
     void setTheme(int theme);
+    void setLanguage(int language);
     void setBall(bool visible, double x, double y);
     void setOnboardingDone(bool done);
     void setUpdateUrl(const QString &url);

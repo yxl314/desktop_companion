@@ -7,6 +7,8 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QUrl>
+#include <QProcess>
+#include <QDir>
 #include <QGuiApplication>
 #include <QPalette>
 #include <QImage>
@@ -1493,6 +1495,28 @@ void Bridge::toggleMuteMode()
     setMode(m_config->values().mode == 2 ? 0 : 2);
     reportInfo(m_config->values().mode == 2 ? QStringLiteral("已进入勿扰模式")
                                            : QStringLiteral("已退出勿扰模式"));
+}
+
+int Bridge::language() const
+{
+    return m_config->values().language;
+}
+
+void Bridge::setLanguage(int language)
+{
+    m_config->setLanguage(language);
+    m_config->save();
+    emit settingsChanged();
+}
+
+void Bridge::restartApp()
+{
+    m_config->save();
+    const QString exe = QCoreApplication::applicationFilePath();
+    QProcess::startDetached(QStringLiteral("cmd.exe"),
+                            {QStringLiteral("/c"), QStringLiteral("start"), QString(),
+                             QDir::toNativeSeparators(exe)});
+    QTimer::singleShot(150, this, [this] { quitApp(); });
 }
 
 int Bridge::theme() const

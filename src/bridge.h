@@ -80,6 +80,7 @@ class Bridge : public QObject
     Q_PROPERTY(QString borderColor READ borderColor NOTIFY settingsChanged)
     Q_PROPERTY(QString textColor READ textColor NOTIFY settingsChanged)
     Q_PROPERTY(QString secondaryTextColor READ secondaryTextColor NOTIFY settingsChanged)
+    Q_PROPERTY(int language READ language WRITE setLanguage NOTIFY settingsChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -148,6 +149,8 @@ public:
     QString borderColor() const;
     QString textColor() const;
     QString secondaryTextColor() const;
+    int language() const;
+    void setLanguage(int language);
     void setManagerPage(int page);
     QStringList presets() const;
     QString presetName() const;
@@ -167,6 +170,7 @@ public:
     Q_INVOKABLE void setBallPosition(double x, double y);
     Q_INVOKABLE void toggleMuteMode();
     Q_INVOKABLE void checkUpdate();
+    Q_INVOKABLE void restartApp();
     Q_INVOKABLE QString currentAvatarPath() const;
     Q_INVOKABLE QVariantList hitAreaRects() const;
     Q_INVOKABLE void cycleCharacter();

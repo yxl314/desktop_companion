@@ -554,7 +554,19 @@ Window {
             ColumnLayout {
                 spacing: 12
                 RowLayout {
-                    Label { text: qsTr("主题") }
+                    Label { text: qsTr("语言"); Layout.preferredWidth: 70 }
+                    ComboBox {
+                        Layout.preferredWidth: 160
+                        model: ["中文", "English", qsTr("跟随系统")]
+                        currentIndex: bridge.language
+                        onActivated: {
+                            bridge.language = currentIndex
+                            bridge.restartApp()
+                        }
+                    }
+                }
+                RowLayout {
+                    Label { text: qsTr("主题"); Layout.preferredWidth: 70 }
                     ComboBox {
                         Layout.preferredWidth: 160
                         model: [qsTr("浅色"), qsTr("深色"), qsTr("跟随系统")]
@@ -563,7 +575,7 @@ Window {
                     }
                 }
                 RowLayout {
-                    Label { text: qsTr("模式") }
+                    Label { text: qsTr("模式"); Layout.preferredWidth: 70 }
                     ComboBox {
                         Layout.preferredWidth: 160
                         model: [qsTr("休闲"), qsTr("工作"), qsTr("勿扰")]

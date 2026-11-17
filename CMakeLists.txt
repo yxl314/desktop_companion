@@ -1,16 +1,20 @@
 cmake_minimum_required(VERSION 3.21)
-project(desktop_companion VERSION 0.8.0 LANGUAGES CXX)
+project(desktop_companion VERSION 0.9.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Gui Widgets Network Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Gui Widgets Network Test LinguistTools)
 find_package(SQLite3 REQUIRED)
 qt_standard_project_setup()
 
 add_subdirectory(third_party/stacklog)
 add_subdirectory(third_party/singleproc)
 
+qt_add_translations(desktop_companion
+    TS_FILES translations/desktop_companion_en.ts
+    RESOURCE_PREFIX "/i18n"
+)
 qt_add_executable(desktop_companion WIN32
     src/main.cpp
     src/autostart.h src/autostart.cpp

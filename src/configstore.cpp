@@ -72,6 +72,7 @@ void ConfigStore::load()
     m_config.proactiveFrequency = root.value(QStringLiteral("proactiveFrequency")).toInt(0);
     m_config.mode = qBound(0, root.value(QStringLiteral("mode")).toInt(0), 2);
     m_config.theme = qBound(0, root.value(QStringLiteral("theme")).toInt(0), 2);
+    m_config.language = qBound(0, root.value(QStringLiteral("language")).toInt(2), 2);
     m_config.ballVisible = root.value(QStringLiteral("ballVisible")).toBool(true);
     m_config.ballX = root.value(QStringLiteral("ballX")).toDouble(-1.0);
     m_config.ballY = root.value(QStringLiteral("ballY")).toDouble(-1.0);
@@ -123,6 +124,7 @@ bool ConfigStore::save(QString *error)
     root.insert(QStringLiteral("proactiveFrequency"), m_config.proactiveFrequency);
     root.insert(QStringLiteral("mode"), m_config.mode);
     root.insert(QStringLiteral("theme"), m_config.theme);
+    root.insert(QStringLiteral("language"), m_config.language);
     root.insert(QStringLiteral("ballVisible"), m_config.ballVisible);
     root.insert(QStringLiteral("ballX"), m_config.ballX);
     root.insert(QStringLiteral("ballY"), m_config.ballY);
@@ -214,6 +216,12 @@ void ConfigStore::setMode(int mode)
 void ConfigStore::setTheme(int theme)
 {
     m_config.theme = qBound(0, theme, 2);
+    emit changed();
+}
+
+void ConfigStore::setLanguage(int language)
+{
+    m_config.language = qBound(0, language, 2);
     emit changed();
 }
 

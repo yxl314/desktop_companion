@@ -14,7 +14,9 @@
 #include <QPixmap>
 #include <QScreen>
 #include <QStandardPaths>
+#include <QLocale>
 #include <QStyle>
+#include <QTranslator>
 #include <QSystemTrayIcon>
 #include <QTimer>
 #include <QUrl>
@@ -165,6 +167,18 @@ int main(int argc, char *argv[])
         }
         QGuiApplication::setPalette(palette);
     };
+    // 语言：0 中文 1 English 2 跟随系统；切换后由 Bridge 重启应用生效。
+    QTranslator translator;
+    const int languageSetting = bridge.language();
+    const bool english = languageSetting == 1
+                         || (languageSetting == 2 && QLocale::system().language() == QLocale::English);
+    if (english && translator.load(QStringLiteral(":/i18n/desktop_companion_en.qm"))) {
+        app.installTranslator(&translator);
+        STACKLOG_INFO() << "english translation installed";
+    }
+    else if (english)
+        STACKLOG_WARN() << "english translation not found";
+
     QObject::connect(&bridge, &Bridge::settingsChanged, &app, applyTheme);
     applyTheme();
 
