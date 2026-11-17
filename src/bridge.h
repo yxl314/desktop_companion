@@ -2,6 +2,7 @@
 #define BRIDGE_H
 
 #include <QObject>
+#include <QPointF>
 #include <QString>
 #include <QTimer>
 #include <QVariantList>
@@ -29,6 +30,8 @@ class Bridge : public QObject
     Q_PROPERTY(double bubbleY READ bubbleY NOTIFY bubblePosChanged)
     Q_PROPERTY(double petX READ petX NOTIFY petPosChanged)
     Q_PROPERTY(double petY READ petY NOTIFY petPosChanged)
+    Q_PROPERTY(QVariantList pets READ pets NOTIFY petLayoutChanged)
+    Q_PROPERTY(int petCount READ petCount WRITE setPetCount NOTIFY petLayoutChanged)
     Q_PROPERTY(bool hasSavedPos READ hasSavedPos CONSTANT)
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY chatStateChanged)
@@ -62,6 +65,7 @@ class Bridge : public QObject
     Q_PROPERTY(double idleAmplitude READ idleAmplitude WRITE setIdleAmplitude NOTIFY settingsChanged)
     Q_PROPERTY(bool clickThrough READ clickThrough WRITE setClickThrough NOTIFY settingsChanged)
     Q_PROPERTY(bool debugHitAreas READ debugHitAreas WRITE setDebugHitAreas NOTIFY settingsChanged)
+    Q_PROPERTY(bool edgeHide READ edgeHide WRITE setEdgeHide NOTIFY settingsChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -111,6 +115,8 @@ public:
     void setClickThrough(bool enabled);
     bool debugHitAreas() const;
     void setDebugHitAreas(bool enabled);
+    bool edgeHide() const;
+    void setEdgeHide(bool enabled);
     void setManagerPage(int page);
     QStringList presets() const;
     QString presetName() const;
@@ -122,16 +128,19 @@ public:
     QString dataDir() const;
     QString logDir() const;
 
-    Q_INVOKABLE void petClicked(double x, double y, double width, double height);
+    Q_INVOKABLE void petClicked(int index, double x, double y, double width, double height);
+    Q_INVOKABLE QVariantList pets() const;
+    Q_INVOKABLE int petCount() const;
+    Q_INVOKABLE void setPetPosition(int index, double x, double y);
+    Q_INVOKABLE void setPetCount(int count);
     Q_INVOKABLE QString currentAvatarPath() const;
     Q_INVOKABLE QVariantList hitAreaRects() const;
     Q_INVOKABLE void cycleCharacter();
-    Q_INVOKABLE void setPetPosition(double x, double y);
     Q_INVOKABLE void openChat();
     Q_INVOKABLE void closeChat();
     Q_INVOKABLE void sendChat(const QString &text);
     Q_INVOKABLE void togglePet();
-    Q_INVOKABLE void showPetMenu();
+    Q_INVOKABLE void showPetMenu(int index = 0);
     Q_INVOKABLE void quitApp();
     Q_INVOKABLE void notifyAlreadyRunning();
 
@@ -187,6 +196,7 @@ signals:
     void bubbleTextChanged();
     void bubblePosChanged();
     void petPosChanged();
+    void petLayoutChanged();
     void statusTextChanged();
     void settingsChanged();
     void personasChanged();
@@ -210,6 +220,7 @@ private:
     void setStatusText(const QString &text);
     void setTestResult(const QString &text);
     void positionBubble(double petX, double petY);
+    QPointF petPosition(int index) const;
     void reportError(quint32 code, const QString &detail);
     void reportInfo(const QString &text);
     void refreshCharacters();
@@ -244,6 +255,7 @@ private:
     QString m_testResult;
     bool m_hasSavedPosition = false;
     int m_managerPage = 0;
+    int m_activePetIndex = 0;
 };
 
 #endif // BRIDGE_H

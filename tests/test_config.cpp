@@ -20,7 +20,7 @@ void TestConfig::savesAndLoads()
         store.setLlm(QStringLiteral("Ollama"), QStringLiteral("http://127.0.0.1:11434/v1"),
                      QStringLiteral("secret"), QStringLiteral("qwen2.5:7b"));
         store.setPersonaId(QStringLiteral("cat"));
-        store.setPetPosition(120.0, 240.0);
+        store.setPetPosition(0, 120.0, 240.0);
         QString error;
         QVERIFY2(store.save(&error), qPrintable(error));
     }
@@ -30,8 +30,9 @@ void TestConfig::savesAndLoads()
     QCOMPARE(loaded.values().apiKey, QStringLiteral("secret"));
     QCOMPARE(loaded.values().model, QStringLiteral("qwen2.5:7b"));
     QCOMPARE(loaded.values().personaId, QStringLiteral("cat"));
-    QCOMPARE(loaded.values().petX, 120.0);
-    QCOMPARE(loaded.values().petY, 240.0);
+    QVERIFY(loaded.values().petPositions.size() >= 1);
+    QCOMPARE(loaded.values().petPositions.at(0).x(), 120.0);
+    QCOMPARE(loaded.values().petPositions.at(0).y(), 240.0);
 }
 
 void TestConfig::personaImportAndRemove()

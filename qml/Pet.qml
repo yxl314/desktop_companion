@@ -2,14 +2,53 @@ import QtQuick
 
 Window {
     id: root
-    objectName: "petWindow"
+    property int petIndex: 0
+    objectName: petIndex === 0 ? "petWindow" : "petWindow" + petIndex
     flags: Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint
     color: "transparent"
     width: 240
     height: 320
-    visible: bridge.petVisible
-    x: bridge.petX
-    y: bridge.petY
+    visible: bridge.petVisible && petIndex < bridge.petCount
+    x: {
+        const list = bridge.pets
+        return petIndex < list.length ? list[petIndex].x : 0
+    }
+    y: {
+        const list = bridge.pets
+        return petIndex < list.length ? list[petIndex].y : 0
+    }
+
+    property bool edgeHidden: false
+    property int hiddenSide: 0
+    property real restoreX: 0
+    property real restoreY: 0
+
+    function checkEdgeHide() {
+        if (!bridge.edgeHide)
+            return
+        const g = screen.availableGeometry
+        // 顶部不隐藏，避免与全屏/最大化窗口误触。
+        if (root.y <= g.y + 6)
+            return
+        if (root.x < g.x + 8) {
+            hiddenSide = -1
+            restoreX = g.x
+            edgeHidden = true
+            root.x = g.x - root.width * 0.72
+        } else if (root.x + root.width > g.x + g.width - 8) {
+            hiddenSide = 1
+            restoreX = g.x + g.width - root.width
+            edgeHidden = true
+            root.x = g.x + g.width - root.width * 0.28
+        }
+    }
+
+    function restoreFromEdge() {
+        if (!edgeHidden)
+            return
+        edgeHidden = false
+        root.x = restoreX
+    }
 
     Item {
         id: bob
@@ -20,7 +59,7 @@ Window {
         Image {
             id: petImage
             anchors.fill: parent
-            source: bridge.avatarPath
+            source: bridge.pets.length > petIndex ? bridge.pets[petIndex].avatar : bridge.avatarPath
             fillMode: Image.PreserveAspectFit
             smooth: true
             transformOrigin: Item.Bottom
@@ -61,14 +100,6 @@ Window {
         width: root.width
         height: root.height
         visible: bridge.debugHitAreas
-        Rectangle {
-            anchors.fill: parent
-            color: "#2200ff00"
-            border.color: "#cc00aa00"
-            border.width: 2
-        }
-        Component.onCompleted: console.log("debug hit areas visible=" + bridge.debugHitAreas
-                                            + " rects=" + bridge.hitAreaRects().length)
         Repeater {
             model: bridge.hitAreaRects()
             delegate: Rectangle {
@@ -96,15 +127,20 @@ Window {
         width: root.width
         height: root.height
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        hoverEnabled: true
         property bool dragging: false
         property real pressX: 0
         property real pressY: 0
 
+        onEntered: root.restoreFromEdge()
+
         onPressed: (mouse) => {
             if (mouse.button === Qt.RightButton) {
-                bridge.showPetMenu()
+                bridge.showPetMenu(root.petIndex)
                 return
             }
+            if (root.edgeHidden)
+                root.restoreFromEdge()
             dragging = false
             pressX = mouse.x
             pressY = mouse.y
@@ -125,11 +161,12 @@ Window {
             if (mouse.button === Qt.RightButton)
                 return
             if (dragging) {
-                bridge.setPetPosition(root.x, root.y)
+                bridge.setPetPosition(root.petIndex, root.x, root.y)
                 dragging = false
+                root.checkEdgeHide()
             } else {
                 tapAnimation.restart()
-                bridge.petClicked(pressX, pressY, root.width, root.height)
+                bridge.petClicked(root.petIndex, pressX, pressY, root.width, root.height)
             }
         }
 

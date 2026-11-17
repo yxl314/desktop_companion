@@ -541,6 +541,20 @@ Window {
                     text: qsTr("Windows 单平台 · Qt 6.12 + C++23 · stacklog 日志 · singleproc 单实例\n"
                                + "聊天支持 OpenAI 兼容接口（Ollama / LM Studio / DeepSeek / OpenAI / OpenCode Go / 自定义）。")
                 }
+                RowLayout {
+                    Label { text: qsTr("桌宠数量") }
+                    ComboBox {
+                        Layout.preferredWidth: 120
+                        model: ["1 只", "2 只", "3 只"]
+                        currentIndex: bridge.petCount - 1
+                        onActivated: bridge.petCount = currentIndex + 1
+                    }
+                }
+                CheckBox {
+                    text: qsTr("贴边隐藏（顶部不隐藏）")
+                    checked: bridge.edgeHide
+                    onToggled: bridge.edgeHide = checked
+                }
                 CheckBox {
                     text: qsTr("开机自动启动")
                     checked: bridge.autoStart

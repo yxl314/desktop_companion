@@ -82,9 +82,16 @@ Bridge::Bridge(QObject *parent)
     , m_characters(new CharacterStore())
     , m_worlds(new WorldStore())
 {
-    m_petX = m_config->values().petX;
-    m_petY = m_config->values().petY;
-    m_hasSavedPos = m_petX >= 0 && m_petY >= 0;
+    const QVector<QPointF> positions = m_config->values().petPositions;
+    if (!positions.isEmpty() && positions.at(0).x() >= 0 && positions.at(0).y() >= 0) {
+        m_petX = positions.at(0).x();
+        m_petY = positions.at(0).y();
+        m_hasSavedPos = true;
+    } else {
+        m_petX = 0;
+        m_petY = 0;
+        m_hasSavedPos = false;
+    }
 
     m_bubbleTimer.setSingleShot(true);
     connect(&m_bubbleTimer, &QTimer::timeout, this, [this] { setBubbleVisible(false); });
@@ -355,8 +362,17 @@ QVariantMap Bridge::presetDefaults(const QString &preset) const
     return defaults;
 }
 
-void Bridge::petClicked(double x, double y, double width, double height)
+void Bridge::petClicked(int index, double x, double y, double width, double height)
 {
+    m_activePetIndex = index;
+    const QPointF position = petPosition(index);
+    m_petX = position.x();
+    m_petY = position.y();
+    const QVector<QString> petCharacters = m_config->values().petCharacters;
+    if (index < petCharacters.size() && !petCharacters.at(index).isEmpty()
+        && petCharacters.at(index) != m_config->values().characterId) {
+        selectCharacter(petCharacters.at(index));
+    }
     static const QStringList headLines = {
         QStringLiteral("别摸头啦～"),
         QStringLiteral("头好痒…"),
@@ -400,11 +416,10 @@ void Bridge::petClicked(double x, double y, double width, double height)
     const QStringList &chosen = areaLines.isEmpty() ? *lines : areaLines;
     m_bubbleText = chosen.at(QRandomGenerator::global()->bounded(chosen.size()));
     emit bubbleTextChanged();
-    positionBubble(x, y);
+    positionBubble(m_petX, m_petY);
     setBubbleVisible(true);
     m_bubbleTimer.start(4200);
     scheduleProactive();
-    setPetPosition(x, y);
 }
 
 void Bridge::positionBubble(double x, double y)
@@ -414,14 +429,66 @@ void Bridge::positionBubble(double x, double y)
     emit bubblePosChanged();
 }
 
-void Bridge::setPetPosition(double x, double y)
+void Bridge::setPetPosition(int index, double x, double y)
 {
-    m_petX = x;
-    m_petY = y;
-    m_hasSavedPos = true;
-    m_config->setPetPosition(x, y);
+    m_config->setPetPosition(index, x, y);
     m_config->save();
-    emit petPosChanged();
+    m_hasSavedPos = true;
+    if (index == 0) {
+        m_petX = x;
+        m_petY = y;
+        emit petPosChanged();
+    }
+    emit petLayoutChanged();
+}
+
+QPointF Bridge::petPosition(int index) const
+{
+    const QVector<QPointF> positions = m_config->values().petPositions;
+    if (index >= 0 && index < positions.size() && positions.at(index).x() >= 0
+        && positions.at(index).y() >= 0) {
+        return positions.at(index);
+    }
+    return QPointF(m_petX + index * 90.0, m_petY + index * 40.0);
+}
+
+QVariantList Bridge::pets() const
+{
+    QVariantList result;
+    const int count = m_config->values().petCount;
+    const QVector<QString> characterIds = m_config->values().petCharacters;
+    for (int i = 0; i < count; ++i) {
+        const QPointF position = petPosition(i);
+        QString avatar = currentAvatarPath();
+        QString characterId;
+        if (i < characterIds.size() && !characterIds.at(i).isEmpty()
+            && m_characters->contains(characterIds.at(i))) {
+            characterId = characterIds.at(i);
+            const QString custom = m_characters->primaryAvatar(characterId);
+            if (!custom.isEmpty())
+                avatar = QUrl::fromLocalFile(custom).toString();
+        }
+        QVariantMap item;
+        item.insert(QStringLiteral("index"), i);
+        item.insert(QStringLiteral("x"), position.x());
+        item.insert(QStringLiteral("y"), position.y());
+        item.insert(QStringLiteral("characterId"), characterId);
+        item.insert(QStringLiteral("avatar"), avatar);
+        result.append(item);
+    }
+    return result;
+}
+
+int Bridge::petCount() const
+{
+    return m_config->values().petCount;
+}
+
+void Bridge::setPetCount(int count)
+{
+    m_config->setPetCount(count);
+    m_config->save();
+    emit petLayoutChanged();
 }
 
 void Bridge::openChat()
@@ -568,8 +635,9 @@ void Bridge::notifyAlreadyRunning()
     m_bubbleTimer.start(4200);
 }
 
-void Bridge::showPetMenu()
+void Bridge::showPetMenu(int index)
 {
+    m_activePetIndex = index;
     QMenu menu;
     QAction *chatAction = menu.addAction(QStringLiteral("打开聊天"));
     QAction *characterAction = menu.addAction(QStringLiteral("切换角色"));
@@ -671,6 +739,7 @@ void Bridge::refreshCharacters()
 {
     emit charactersChanged();
     emit avatarPathChanged();
+    emit petLayoutChanged();
 }
 
 void Bridge::refreshWorlds()
@@ -1278,6 +1347,18 @@ void Bridge::setDebugHitAreas(bool enabled)
     emit settingsChanged();
 }
 
+bool Bridge::edgeHide() const
+{
+    return m_config->values().edgeHide;
+}
+
+void Bridge::setEdgeHide(bool enabled)
+{
+    m_config->setEdgeHide(enabled);
+    m_config->save();
+    emit settingsChanged();
+}
+
 QString Bridge::currentAvatarPath() const
 {
     const QString characterId = m_config->values().characterId;
@@ -1326,11 +1407,17 @@ QVariantList Bridge::hitAreaRects() const
 void Bridge::cycleCharacter()
 {
     const QList<Character> list = m_characters->list();
-    if (list.size() < 2) {
-        reportInfo(QStringLiteral("只有一个角色"));
+    if (list.isEmpty()) {
+        reportInfo(QStringLiteral("还没有角色"));
         return;
     }
-    const QString current = m_config->values().characterId;
+    const QVector<QString> petCharacters = m_config->values().petCharacters;
+    QString current;
+    if (m_activePetIndex >= 0 && m_activePetIndex < petCharacters.size())
+        current = petCharacters.at(m_activePetIndex);
+    if (current.isEmpty())
+        current = m_config->values().characterId;
+
     int index = 0;
     for (int i = 0; i < list.size(); ++i) {
         if (list.at(i).id == current) {
@@ -1338,8 +1425,10 @@ void Bridge::cycleCharacter()
             break;
         }
     }
-    selectCharacter(list.at(index).id);
-    reportInfo(QStringLiteral("已切换到角色：%1").arg(list.at(index).name));
+    m_config->setPetCharacter(m_activePetIndex, list.at(index).id);
+    m_config->save();
+    emit petLayoutChanged();
+    reportInfo(QStringLiteral("桌宠 %1 已切换到：%2").arg(m_activePetIndex + 1).arg(list.at(index).name));
 }
 
 void Bridge::scheduleProactive()

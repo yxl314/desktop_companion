@@ -8,6 +8,7 @@
 #include <QImage>
 #include <QMenu>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QPixmap>
@@ -155,22 +156,49 @@ int main(int argc, char *argv[])
         qInfo("QML: %s", qPrintable(path));
         engine.load(QUrl(QStringLiteral("qrc") + path));
     };
-    loadQml(QStringLiteral("Pet"));
     loadQml(QStringLiteral("Bubble"));
     loadQml(QStringLiteral("Chat"));
     loadQml(QStringLiteral("Manager"));
 
-    if (engine.rootObjects().isEmpty()) {
+    // 多桌宠：同一 Pet.qml 实例化最多 3 个窗口，由 petIndex 区分；
+    // 实际显示数量由 bridge.petCount 决定。
+    QList<QQuickWindow *> petWindows;
+    {
+        QQmlComponent petComponent(&engine, QUrl(QStringLiteral("qrc:/qml/Pet.qml")));
+        if (petComponent.isError()) {
+            for (const QQmlError &error : petComponent.errors())
+                qWarning("pet component error: %s", qPrintable(error.toString()));
+        } else {
+            for (int i = 0; i < 3; ++i) {
+                QObject *object = petComponent.create();
+                if (object == nullptr) {
+                    qWarning("pet window %d create failed", i);
+                    continue;
+                }
+                object->setProperty("petIndex", i);
+                if (auto *window = qobject_cast<QQuickWindow *>(object))
+                    petWindows.append(window);
+            }
+        }
+    }
+
+    if (engine.rootObjects().isEmpty() || petWindows.isEmpty()) {
         qCritical("QML 加载失败");
         stacklog::shutdown();
         return 1;
     }
 
     // 透明区域点击穿透：按当前形象 alpha 生成窗口区域（Windows SetWindowRgn）。
-    const auto applyPetMasks = [&engine, &bridge] {
+    const auto applyPetMasks = [&engine, &bridge, &petWindows] {
+        QList<QQuickWindow *> windows = petWindows;
         for (QObject *obj : engine.rootObjects()) {
-            auto *window = qobject_cast<QQuickWindow *>(obj);
-            if (!window || window->objectName() != QStringLiteral("petWindow"))
+            if (auto *window = qobject_cast<QQuickWindow *>(obj); window
+                && window->objectName().startsWith(QStringLiteral("petWindow"))) {
+                windows.append(window);
+            }
+        }
+        for (QQuickWindow *window : windows) {
+            if (!window)
                 continue;
             if (!bridge.clickThrough() || bridge.debugHitAreas()) {
                 petwindow::clearMask(window);
@@ -216,10 +244,14 @@ int main(int argc, char *argv[])
     });
     tray.show();
 
-    const auto grabAll = [&engine](const QString &dir, bool onlyMissing) {
+    const auto grabAll = [&engine, &petWindows](const QString &dir, bool onlyMissing) {
         int saved = 0;
+        QList<QQuickWindow *> windows = petWindows;
         for (QObject *obj : engine.rootObjects()) {
-            auto *window = qobject_cast<QQuickWindow *>(obj);
+            if (auto *window = qobject_cast<QQuickWindow *>(obj))
+                windows.append(window);
+        }
+        for (QQuickWindow *window : windows) {
             if (!window)
                 continue;
             const QString name = window->objectName().isEmpty()
@@ -246,7 +278,7 @@ int main(int argc, char *argv[])
             qInfo("window: %s", qPrintable(obj->objectName()));
         QTimer::singleShot(1200, &app, [&bridge] {
             bridge.openChat();
-            bridge.petClicked(120, 100, 240, 320);
+            bridge.petClicked(0, 120, 100, 240, 320);
             bridge.openManager();
         });
         QTimer::singleShot(1500, &app, [&bridge] { bridge.sendChat(QStringLiteral("你好")); });
@@ -259,7 +291,7 @@ int main(int argc, char *argv[])
         qInfo("demo mode: dir=%s", qPrintable(demoDir));
         QTimer::singleShot(1200, &app, [&bridge] {
             bridge.openChat();
-            bridge.petClicked(120, 100, 240, 320);
+            bridge.petClicked(0, 120, 100, 240, 320);
         });
         const QString demoText = parser.isSet(demoTextOption)
                                      ? parser.value(demoTextOption)

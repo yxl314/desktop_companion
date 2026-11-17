@@ -2,7 +2,9 @@
 #define CONFIGSTORE_H
 
 #include <QObject>
+#include <QPointF>
 #include <QString>
+#include <QVector>
 
 /// 应用配置；保存到数据目录的 config.json，采用原子写。
 struct AppConfig
@@ -17,10 +19,12 @@ struct AppConfig
     double idleAmplitude = 1.0;
     bool clickThrough = true;
     bool debugHitAreas = false;
+    bool edgeHide = true;
     bool autoExtractMemories = true;
     int proactiveFrequency = 0; // 0 关 1 低 2 中 3 高
-    double petX = -1.0;
-    double petY = -1.0;
+    int petCount = 1;
+    QVector<QPointF> petPositions; // 每个桌宠的位置，-1 表示未设置
+    QVector<QString> petCharacters; // 每个桌宠绑定的角色 id（空 = 当前角色）
 };
 
 class ConfigStore : public QObject
@@ -38,7 +42,10 @@ public:
     void setCharacterId(const QString &characterId);
     void setMemoryPrefs(bool autoExtract, int proactiveFrequency);
     void setPetBehavior(bool idleMotion, double idleAmplitude, bool clickThrough, bool debugHitAreas);
-    void setPetPosition(double x, double y);
+    void setPetPosition(int index, double x, double y);
+    void setPetCount(int count);
+    void setEdgeHide(bool enabled);
+    void setPetCharacter(int index, const QString &characterId);
 
     bool save(QString *error = nullptr);
     void load();

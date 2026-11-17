@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
@@ -23,6 +24,8 @@ ConfigStore::ConfigStore(const QString &filePath, QObject *parent)
     : QObject(parent)
     , m_filePath(filePath.isEmpty() ? defaultConfigPath() : filePath)
 {
+    m_config.petPositions = QVector<QPointF>(3, QPointF(-1.0, -1.0));
+    m_config.petCharacters = QVector<QString>(3, QString());
     load();
 }
 
@@ -52,10 +55,28 @@ void ConfigStore::load()
     m_config.idleAmplitude = root.value(QStringLiteral("idleAmplitude")).toDouble(1.0);
     m_config.clickThrough = root.value(QStringLiteral("clickThrough")).toBool(true);
     m_config.debugHitAreas = root.value(QStringLiteral("debugHitAreas")).toBool(false);
+    m_config.edgeHide = root.value(QStringLiteral("edgeHide")).toBool(true);
     m_config.autoExtractMemories = root.value(QStringLiteral("autoExtractMemories")).toBool(true);
     m_config.proactiveFrequency = root.value(QStringLiteral("proactiveFrequency")).toInt(0);
-    m_config.petX = root.value(QStringLiteral("petX")).toDouble(-1.0);
-    m_config.petY = root.value(QStringLiteral("petY")).toDouble(-1.0);
+    m_config.petCount = qBound(1, root.value(QStringLiteral("petCount")).toInt(1), 3);
+    m_config.petPositions = QVector<QPointF>(3, QPointF(-1.0, -1.0));
+    m_config.petCharacters = QVector<QString>(3, QString());
+    const QJsonArray characters = root.value(QStringLiteral("petCharacters")).toArray();
+    for (int i = 0; i < characters.size() && i < 3; ++i)
+        m_config.petCharacters[i] = characters.at(i).toString();
+    const QJsonArray pets = root.value(QStringLiteral("pets")).toArray();
+    if (!pets.isEmpty()) {
+        for (int i = 0; i < pets.size() && i < 3; ++i) {
+            const QJsonObject pet = pets.at(i).toObject();
+            m_config.petPositions[i] = QPointF(pet.value(QStringLiteral("x")).toDouble(-1.0),
+                                               pet.value(QStringLiteral("y")).toDouble(-1.0));
+        }
+    } else {
+        const double legacyX = root.value(QStringLiteral("petX")).toDouble(-1.0);
+        const double legacyY = root.value(QStringLiteral("petY")).toDouble(-1.0);
+        if (legacyX >= 0 && legacyY >= 0)
+            m_config.petPositions[0] = QPointF(legacyX, legacyY);
+    }
 }
 
 bool ConfigStore::save(QString *error)
@@ -78,10 +99,19 @@ bool ConfigStore::save(QString *error)
     root.insert(QStringLiteral("idleAmplitude"), m_config.idleAmplitude);
     root.insert(QStringLiteral("clickThrough"), m_config.clickThrough);
     root.insert(QStringLiteral("debugHitAreas"), m_config.debugHitAreas);
+    root.insert(QStringLiteral("edgeHide"), m_config.edgeHide);
     root.insert(QStringLiteral("autoExtractMemories"), m_config.autoExtractMemories);
     root.insert(QStringLiteral("proactiveFrequency"), m_config.proactiveFrequency);
-    root.insert(QStringLiteral("petX"), m_config.petX);
-    root.insert(QStringLiteral("petY"), m_config.petY);
+    root.insert(QStringLiteral("petCount"), m_config.petCount);
+    QJsonArray pets;
+    for (const QPointF &position : m_config.petPositions) {
+        pets.append(QJsonObject{{QStringLiteral("x"), position.x()}, {QStringLiteral("y"), position.y()}});
+    }
+    root.insert(QStringLiteral("pets"), pets);
+    QJsonArray petCharacters;
+    for (const QString &characterId : m_config.petCharacters)
+        petCharacters.append(characterId);
+    root.insert(QStringLiteral("petCharacters"), petCharacters);
 
     QSaveFile file(m_filePath);
     if (!file.open(QIODevice::WriteOnly)) {
@@ -135,9 +165,30 @@ void ConfigStore::setPetBehavior(bool idleMotion, double idleAmplitude, bool cli
     emit changed();
 }
 
-void ConfigStore::setPetPosition(double x, double y)
+void ConfigStore::setPetPosition(int index, double x, double y)
 {
-    m_config.petX = x;
-    m_config.petY = y;
+    if (index < 0 || index >= m_config.petPositions.size())
+        return;
+    m_config.petPositions[index] = QPointF(x, y);
+    emit changed();
+}
+
+void ConfigStore::setEdgeHide(bool enabled)
+{
+    m_config.edgeHide = enabled;
+    emit changed();
+}
+
+void ConfigStore::setPetCharacter(int index, const QString &characterId)
+{
+    if (index < 0 || index >= m_config.petCharacters.size())
+        return;
+    m_config.petCharacters[index] = characterId;
+    emit changed();
+}
+
+void ConfigStore::setPetCount(int count)
+{
+    m_config.petCount = qBound(1, count, 3);
     emit changed();
 }
