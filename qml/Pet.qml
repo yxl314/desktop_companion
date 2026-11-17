@@ -71,7 +71,7 @@ Window {
     }
 
     SequentialAnimation {
-        running: bridge.idleMotion
+        running: bridge.idleMotion && bridge.mode !== 2
         loops: Animation.Infinite
         NumberAnimation {
             target: bob

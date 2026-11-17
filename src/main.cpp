@@ -22,6 +22,7 @@
 #include <stacklog/stacklog.hpp>
 
 #include "bridge.h"
+#include "globalhotkey.h"
 #include "petwindowhelper.h"
 
 namespace
@@ -72,6 +73,9 @@ int main(int argc, char *argv[])
                                         QStringLiteral("打开控制中心时定位到指定页（0 模型 1 角色 2 人设 3 世界观 4 数据 5 关于）"),
                                         QStringLiteral("index"));
     parser.addOption(managerPageOption);
+    QCommandLineOption hidePetOption(QStringLiteral("hide-pet"),
+                                     QStringLiteral("启动后隐藏桌宠（用于验证悬浮球）"));
+    parser.addOption(hidePetOption);
     QCommandLineOption demoTextOption(QStringLiteral("demo-text"),
                                      QStringLiteral("demo 模式发送的消息内容"),
                                      QStringLiteral("text"));
@@ -137,6 +141,12 @@ int main(int argc, char *argv[])
     STACKLOG_INFO() << "primary instance acquired, key=desktop_companion, runtime=" << runtimeDir.toStdString();
 
     Bridge bridge;
+    GlobalHotkey globalHotkey;
+    QObject::connect(&globalHotkey, &GlobalHotkey::togglePetRequested, &bridge, &Bridge::togglePet);
+    QObject::connect(&globalHotkey, &GlobalHotkey::openChatRequested, &bridge, &Bridge::openChat);
+    QObject::connect(&globalHotkey, &GlobalHotkey::toggleMuteRequested, &bridge, &Bridge::toggleMuteMode);
+    globalHotkey.registerDefaultHotkeys();
+    app.installNativeEventFilter(&globalHotkey);
 
     QQmlApplicationEngine engine;
     if (managerPageIndex >= 0)
@@ -157,6 +167,7 @@ int main(int argc, char *argv[])
         engine.load(QUrl(QStringLiteral("qrc") + path));
     };
     loadQml(QStringLiteral("Bubble"));
+    loadQml(QStringLiteral("Ball"));
     loadQml(QStringLiteral("Chat"));
     loadQml(QStringLiteral("Manager"));
 
@@ -213,6 +224,8 @@ int main(int argc, char *argv[])
     };
     applyPetMasks();
     QObject::connect(&bridge, &Bridge::settingsChanged, &app, applyPetMasks);
+    if (parser.isSet(hidePetOption))
+        bridge.setPetVisible(false);
     QObject::connect(&bridge, &Bridge::charactersChanged, &app, applyPetMasks);
 
     // 二次启动：门铃触发的提示，由主实例气泡展示。

@@ -22,6 +22,12 @@ struct AppConfig
     bool edgeHide = true;
     bool autoExtractMemories = true;
     int proactiveFrequency = 0; // 0 关 1 低 2 中 3 高
+    int mode = 0; // 0 休闲 1 工作 2 勿扰
+    bool ballVisible = true;
+    double ballX = -1.0;
+    double ballY = -1.0;
+    bool onboardingDone = false;
+    QString updateUrl;
     int petCount = 1;
     QVector<QPointF> petPositions; // 每个桌宠的位置，-1 表示未设置
     QVector<QString> petCharacters; // 每个桌宠绑定的角色 id（空 = 当前角色）
@@ -46,6 +52,10 @@ public:
     void setPetCount(int count);
     void setEdgeHide(bool enabled);
     void setPetCharacter(int index, const QString &characterId);
+    void setMode(int mode);
+    void setBall(bool visible, double x, double y);
+    void setOnboardingDone(bool done);
+    void setUpdateUrl(const QString &url);
 
     bool save(QString *error = nullptr);
     void load();

@@ -58,6 +58,12 @@ void ConfigStore::load()
     m_config.edgeHide = root.value(QStringLiteral("edgeHide")).toBool(true);
     m_config.autoExtractMemories = root.value(QStringLiteral("autoExtractMemories")).toBool(true);
     m_config.proactiveFrequency = root.value(QStringLiteral("proactiveFrequency")).toInt(0);
+    m_config.mode = qBound(0, root.value(QStringLiteral("mode")).toInt(0), 2);
+    m_config.ballVisible = root.value(QStringLiteral("ballVisible")).toBool(true);
+    m_config.ballX = root.value(QStringLiteral("ballX")).toDouble(-1.0);
+    m_config.ballY = root.value(QStringLiteral("ballY")).toDouble(-1.0);
+    m_config.onboardingDone = root.value(QStringLiteral("onboardingDone")).toBool(false);
+    m_config.updateUrl = root.value(QStringLiteral("updateUrl")).toString();
     m_config.petCount = qBound(1, root.value(QStringLiteral("petCount")).toInt(1), 3);
     m_config.petPositions = QVector<QPointF>(3, QPointF(-1.0, -1.0));
     m_config.petCharacters = QVector<QString>(3, QString());
@@ -102,6 +108,12 @@ bool ConfigStore::save(QString *error)
     root.insert(QStringLiteral("edgeHide"), m_config.edgeHide);
     root.insert(QStringLiteral("autoExtractMemories"), m_config.autoExtractMemories);
     root.insert(QStringLiteral("proactiveFrequency"), m_config.proactiveFrequency);
+    root.insert(QStringLiteral("mode"), m_config.mode);
+    root.insert(QStringLiteral("ballVisible"), m_config.ballVisible);
+    root.insert(QStringLiteral("ballX"), m_config.ballX);
+    root.insert(QStringLiteral("ballY"), m_config.ballY);
+    root.insert(QStringLiteral("onboardingDone"), m_config.onboardingDone);
+    root.insert(QStringLiteral("updateUrl"), m_config.updateUrl);
     root.insert(QStringLiteral("petCount"), m_config.petCount);
     QJsonArray pets;
     for (const QPointF &position : m_config.petPositions) {
@@ -176,6 +188,32 @@ void ConfigStore::setPetPosition(int index, double x, double y)
 void ConfigStore::setEdgeHide(bool enabled)
 {
     m_config.edgeHide = enabled;
+    emit changed();
+}
+
+void ConfigStore::setMode(int mode)
+{
+    m_config.mode = qBound(0, mode, 2);
+    emit changed();
+}
+
+void ConfigStore::setBall(bool visible, double x, double y)
+{
+    m_config.ballVisible = visible;
+    m_config.ballX = x;
+    m_config.ballY = y;
+    emit changed();
+}
+
+void ConfigStore::setOnboardingDone(bool done)
+{
+    m_config.onboardingDone = done;
+    emit changed();
+}
+
+void ConfigStore::setUpdateUrl(const QString &url)
+{
+    m_config.updateUrl = url;
     emit changed();
 }
 

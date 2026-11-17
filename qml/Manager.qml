@@ -155,6 +155,29 @@ Window {
             inputDialog.onAccept(text)
     }
 
+    Dialog {
+        id: onboarding
+        title: qsTr("欢迎使用桌面桌宠")
+        modal: true
+        width: 460
+        anchors.centerIn: Overlay.overlay
+        standardButtons: Dialog.Ok
+        onAccepted: bridge.onboardingDone = true
+        contentItem: ColumnLayout {
+            spacing: 8
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: qsTr("1. 左键点击桌宠：按命中区说不同台词；双击打开聊天。\n"
+                           + "2. 拖动可移动桌宠，拖到左右屏幕边缘会贴边收起。\n"
+                           + "3. 右键桌宠：切换角色、设置、点击穿透。\n"
+                           + "4. 控制中心可配置模型、角色、人设、世界观、记忆与导出数据。\n"
+                           + "5. 全局快捷键：Ctrl+Alt+P 显隐、Ctrl+Alt+C 聊天、Ctrl+Alt+M 勿扰。")
+                color: "#4a3b2e"
+            }
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 14
@@ -165,7 +188,7 @@ Window {
             ComboBox {
                 id: pageBox
                 Layout.preferredWidth: 200
-                model: ["模型", "角色", "人设", "记忆", "世界观", "数据", "关于"]
+                model: ["模型", "角色", "人设", "记忆", "世界观", "数据", "系统", "关于"]
                 currentIndex: bridge.managerPage
                 onActivated: bridge.managerPage = currentIndex
             }
@@ -524,6 +547,62 @@ Window {
                 Item { Layout.fillHeight: true }
             }
 
+            // ================= 系统 =================
+            ColumnLayout {
+                spacing: 12
+                RowLayout {
+                    Label { text: qsTr("模式") }
+                    ComboBox {
+                        Layout.preferredWidth: 160
+                        model: [qsTr("休闲"), qsTr("工作"), qsTr("勿扰")]
+                        currentIndex: bridge.mode
+                        onActivated: bridge.mode = currentIndex
+                    }
+                    Label {
+                        text: bridge.mode === 2 ? qsTr("勿扰：暂停主动互动与待机动效")
+                                                : qsTr("休闲模式会按频率主动说话")
+                        color: "#8a7a60"
+                        font.pixelSize: 12
+                    }
+                }
+                CheckBox {
+                    text: qsTr("隐藏桌宠时显示悬浮球")
+                    checked: bridge.ballVisible
+                    onToggled: bridge.ballVisible = checked
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("全局快捷键：Ctrl+Alt+P 呼出/隐藏桌宠 · Ctrl+Alt+C 打开聊天 · Ctrl+Alt+M 勿扰模式")
+                    color: "#6b5c48"
+                    font.pixelSize: 12
+                    wrapMode: Text.Wrap
+                }
+                RowLayout {
+                    Button { text: qsTr("检查更新"); onClicked: bridge.checkUpdate() }
+                    Button {
+                        text: qsTr("重新显示新手引导")
+                        onClicked: onboarding.open()
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: bridge.updateResult
+                    visible: bridge.updateResult !== ""
+                    color: "#7a6a50"
+                    font.pixelSize: 12
+                    wrapMode: Text.Wrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("提示：更新地址在 config.json 的 updateUrl 填写（JSON：version/url/notes）。")
+                    color: "#a08a66"
+                    font.pixelSize: 11
+                    wrapMode: Text.Wrap
+                }
+                Item { Layout.fillHeight: true }
+            }
+
             // ================= 关于 =================
             ColumnLayout {
                 spacing: 10
@@ -592,7 +671,11 @@ Window {
         }
     }
 
-    Component.onCompleted: refreshFields()
+    Component.onCompleted: {
+        refreshFields()
+        if (!bridge.onboardingDone)
+            onboarding.open()
+    }
 
     function refreshFields() {
         baseUrlField.text = bridge.baseUrl

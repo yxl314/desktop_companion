@@ -9,6 +9,10 @@
 #include <QUrl>
 #include <QImage>
 #include <QJsonDocument>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QVersionNumber>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QTextStream>
@@ -124,7 +128,8 @@ Bridge::Bridge(QObject *parent)
 
     m_proactiveTimer.setSingleShot(true);
     connect(&m_proactiveTimer, &QTimer::timeout, this, [this] {
-        if (!m_chat->busy() && m_petVisible && m_config->values().proactiveFrequency > 0) {
+        if (!m_chat->busy() && m_petVisible && m_config->values().proactiveFrequency > 0
+            && m_config->values().mode == 0) {
             const QStringList lines = idleLines();
             m_bubbleText = lines.at(QRandomGenerator::global()->bounded(lines.size()));
             emit bubbleTextChanged();
@@ -135,6 +140,9 @@ Bridge::Bridge(QObject *parent)
         scheduleProactive();
     });
     scheduleProactive();
+
+    m_ballX = m_config->values().ballX >= 0 ? m_config->values().ballX : 900;
+    m_ballY = m_config->values().ballY >= 0 ? m_config->values().ballY : 600;
 
     ensureDefaultCharacter();
     applyCharacterContext();
@@ -1431,11 +1439,107 @@ void Bridge::cycleCharacter()
     reportInfo(QStringLiteral("桌宠 %1 已切换到：%2").arg(m_activePetIndex + 1).arg(list.at(index).name));
 }
 
+int Bridge::mode() const
+{
+    return m_config->values().mode;
+}
+
+void Bridge::setMode(int mode)
+{
+    m_config->setMode(mode);
+    m_config->save();
+    scheduleProactive();
+    emit settingsChanged();
+}
+
+bool Bridge::ballVisible() const
+{
+    return m_config->values().ballVisible;
+}
+
+void Bridge::setBallVisible(bool visible)
+{
+    m_config->setBall(visible, m_ballX, m_ballY);
+    m_config->save();
+    emit settingsChanged();
+}
+
+bool Bridge::onboardingDone() const
+{
+    return m_config->values().onboardingDone;
+}
+
+void Bridge::setOnboardingDone(bool done)
+{
+    m_config->setOnboardingDone(done);
+    m_config->save();
+    emit settingsChanged();
+}
+
+void Bridge::setBallPosition(double x, double y)
+{
+    m_ballX = x;
+    m_ballY = y;
+    m_config->setBall(m_config->values().ballVisible, x, y);
+    m_config->save();
+    emit ballPosChanged();
+}
+
+void Bridge::toggleMuteMode()
+{
+    setMode(m_config->values().mode == 2 ? 0 : 2);
+    reportInfo(m_config->values().mode == 2 ? QStringLiteral("已进入勿扰模式")
+                                           : QStringLiteral("已退出勿扰模式"));
+}
+
+void Bridge::checkUpdate()
+{
+    const QString url = m_config->values().updateUrl;
+    if (url.isEmpty()) {
+        m_updateResult = QStringLiteral("未配置更新地址（config.json 的 updateUrl 可填版本清单 URL）");
+        emit updateResultChanged();
+        setStatusText(m_updateResult);
+        return;
+    }
+    m_updateResult = QStringLiteral("正在检查更新…");
+    emit updateResultChanged();
+
+    QNetworkRequest request{QUrl(url)};
+    request.setTransferTimeout(8000);
+    QNetworkReply *reply = m_network->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            m_updateResult = QStringLiteral("检查失败：%1").arg(reply->errorString());
+            emit updateResultChanged();
+            return;
+        }
+        QJsonParseError parseError{};
+        const QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &parseError);
+        if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+            m_updateResult = QStringLiteral("检查失败：版本清单格式错误");
+            emit updateResultChanged();
+            return;
+        }
+        const QJsonObject root = document.object();
+        const QString latest = root.value(QStringLiteral("version")).toString();
+        const QVersionNumber current = QVersionNumber::fromString(QCoreApplication::applicationVersion());
+        const QVersionNumber remote = QVersionNumber::fromString(latest);
+        if (!remote.isNull() && remote > current) {
+            m_updateResult = QStringLiteral("发现新版本 %1：%2")
+                                 .arg(latest, root.value(QStringLiteral("url")).toString());
+        } else {
+            m_updateResult = QStringLiteral("已是最新版本（%1）").arg(current.toString());
+        }
+        emit updateResultChanged();
+    });
+}
+
 void Bridge::scheduleProactive()
 {
     m_proactiveTimer.stop();
     const int frequency = m_config->values().proactiveFrequency;
-    if (frequency <= 0)
+    if (frequency <= 0 || m_config->values().mode != 0)
         return;
     int intervalMs = 10 * 60 * 1000;
     if (frequency == 2)

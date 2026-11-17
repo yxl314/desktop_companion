@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QPointF>
 #include <QString>
+#include <QString>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -66,6 +67,12 @@ class Bridge : public QObject
     Q_PROPERTY(bool clickThrough READ clickThrough WRITE setClickThrough NOTIFY settingsChanged)
     Q_PROPERTY(bool debugHitAreas READ debugHitAreas WRITE setDebugHitAreas NOTIFY settingsChanged)
     Q_PROPERTY(bool edgeHide READ edgeHide WRITE setEdgeHide NOTIFY settingsChanged)
+    Q_PROPERTY(int mode READ mode WRITE setMode NOTIFY settingsChanged)
+    Q_PROPERTY(bool ballVisible READ ballVisible NOTIFY settingsChanged)
+    Q_PROPERTY(double ballX READ ballX NOTIFY ballPosChanged)
+    Q_PROPERTY(double ballY READ ballY NOTIFY ballPosChanged)
+    Q_PROPERTY(bool onboardingDone READ onboardingDone WRITE setOnboardingDone NOTIFY settingsChanged)
+    Q_PROPERTY(QString updateResult READ updateResult NOTIFY updateResultChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -117,6 +124,15 @@ public:
     void setDebugHitAreas(bool enabled);
     bool edgeHide() const;
     void setEdgeHide(bool enabled);
+    int mode() const;
+    void setMode(int mode);
+    bool ballVisible() const;
+    void setBallVisible(bool visible);
+    double ballX() const { return m_ballX; }
+    double ballY() const { return m_ballY; }
+    bool onboardingDone() const;
+    void setOnboardingDone(bool done);
+    QString updateResult() const { return m_updateResult; }
     void setManagerPage(int page);
     QStringList presets() const;
     QString presetName() const;
@@ -133,6 +149,9 @@ public:
     Q_INVOKABLE int petCount() const;
     Q_INVOKABLE void setPetPosition(int index, double x, double y);
     Q_INVOKABLE void setPetCount(int count);
+    Q_INVOKABLE void setBallPosition(double x, double y);
+    Q_INVOKABLE void toggleMuteMode();
+    Q_INVOKABLE void checkUpdate();
     Q_INVOKABLE QString currentAvatarPath() const;
     Q_INVOKABLE QVariantList hitAreaRects() const;
     Q_INVOKABLE void cycleCharacter();
@@ -197,6 +216,8 @@ signals:
     void bubblePosChanged();
     void petPosChanged();
     void petLayoutChanged();
+    void ballPosChanged();
+    void updateResultChanged();
     void statusTextChanged();
     void settingsChanged();
     void personasChanged();
@@ -256,6 +277,10 @@ private:
     bool m_hasSavedPosition = false;
     int m_managerPage = 0;
     int m_activePetIndex = 0;
+    double m_ballX = 0;
+    double m_ballY = 0;
+    QString m_updateResult;
+    class QNetworkAccessManager *m_network = nullptr;
 };
 
 #endif // BRIDGE_H
