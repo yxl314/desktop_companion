@@ -84,6 +84,8 @@ class Bridge : public QObject
     Q_PROPERTY(double temperature READ temperature WRITE setTemperature NOTIFY settingsChanged)
     Q_PROPERTY(int maxTokens READ maxTokens WRITE setMaxTokens NOTIFY settingsChanged)
     Q_PROPERTY(QString feedbackSummary READ feedbackSummary NOTIFY feedbackChanged)
+    Q_PROPERTY(bool autoMode READ autoMode WRITE setAutoMode NOTIFY settingsChanged)
+    Q_PROPERTY(QVariantList modelProfiles READ modelProfiles NOTIFY profilesChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -145,6 +147,9 @@ public:
     void setOnboardingDone(bool done);
     QString updateResult() const { return m_updateResult; }
     QString feedbackSummary() const;
+    bool autoMode() const;
+    void setAutoMode(bool enabled);
+    QVariantList modelProfiles() const;
     int theme() const;
     void setTheme(int theme);
     bool darkTheme() const;
@@ -236,6 +241,9 @@ public:
     Q_INVOKABLE void setMessageFeedback(qint64 messageId, int value);
     Q_INVOKABLE QVariantList records() const;
     Q_INVOKABLE void setCharacterEnabled(const QString &id, bool enabled);
+    Q_INVOKABLE void saveModelProfile(const QString &name);
+    Q_INVOKABLE void applyModelProfile(int index);
+    Q_INVOKABLE void deleteModelProfile(int index);
     Q_INVOKABLE void backtrackToIndex(int index);
 
 signals:
@@ -250,6 +258,7 @@ signals:
     void ballPosChanged();
     void updateResultChanged();
     void feedbackChanged();
+    void profilesChanged();
     void statusTextChanged();
     void settingsChanged();
     void personasChanged();
@@ -313,6 +322,7 @@ private:
     double m_ballY = 0;
     QString m_updateResult;
     class QNetworkAccessManager *m_network = nullptr;
+    class ForegroundWatcher *m_foreground = nullptr;
 };
 
 #endif // BRIDGE_H

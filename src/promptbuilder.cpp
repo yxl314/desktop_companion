@@ -74,5 +74,5 @@ QJsonArray PromptBuilder::buildMessages(const PromptContext &context, const QJso
 QString PromptBuilder::defaultConstraints()
 {
     return QStringLiteral("用简体中文自然回复，像聊天而不是写作文；一次回复不超过三句话，除非用户明确要求展开；"
-                          "不知道的事不要编造。");
+                          "不知道的事不要编造。需要给出攻略/知识卡时，用 ```card 换行 标题 换行 正文 换行 ``` 的格式，便于客户端折叠展示。");
 }

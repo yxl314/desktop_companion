@@ -32,6 +32,14 @@
         <translation>Rewind chat</translation>
     </message>
     <message>
+        <source>展开</source>
+        <translation>Expand</translation>
+    </message>
+    <message>
+        <source>收起</source>
+        <translation>Collapse</translation>
+    </message>
+    <message>
         <source>未配置模型，当前为本地 mock 回复。点「设置」接入 OpenAI 兼容 API。</source>
         <translation>No model configured; using local mock replies. Open Settings to connect an OpenAI-compatible API.</translation>
     </message>
@@ -139,12 +147,20 @@
         <translation>Save</translation>
     </message>
     <message>
+        <source>保存为配置</source>
+        <translation>Save as profile</translation>
+    </message>
+    <message>
         <source>全局快捷键：Ctrl+Alt+P 呼出/隐藏桌宠 · Ctrl+Alt+C 打开聊天 · Ctrl+Alt+M 勿扰模式</source>
         <translation>Global hotkeys: Ctrl+Alt+P show/hide pet · Ctrl+Alt+C chat · Ctrl+Alt+M do-not-disturb</translation>
     </message>
     <message>
         <source>删除</source>
         <translation>Delete</translation>
+    </message>
+    <message>
+        <source>删除配置</source>
+        <translation>Delete profile</translation>
     </message>
     <message>
         <source>勿扰</source>
@@ -203,6 +219,10 @@
         <translation>Saved</translation>
     </message>
     <message>
+        <source>应用</source>
+        <translation>Apply</translation>
+    </message>
+    <message>
         <source>开机自动启动</source>
         <translation>Start with Windows</translation>
     </message>
@@ -233,6 +253,10 @@
     <message>
         <source>打开日志目录</source>
         <translation>Open log folder</translation>
+    </message>
+    <message>
+        <source>按前台应用自动切换模式（工作/休闲）</source>
+        <translation>Auto switch mode by foreground app (work/casual)</translation>
     </message>
     <message>
         <source>提示：更新地址在 config.json 的 updateUrl 填写（JSON：version/url/notes）。</source>
@@ -301,6 +325,10 @@
     <message>
         <source>模型</source>
         <translation>Model</translation>
+    </message>
+    <message>
+        <source>模型配置</source>
+        <translation>Model profiles</translation>
     </message>
     <message>
         <source>模式</source>
@@ -425,6 +453,10 @@
     <message>
         <source>透明区域点击穿透</source>
         <translation>Click-through on transparent pixels</translation>
+    </message>
+    <message>
+        <source>配置名称</source>
+        <translation>Profile name</translation>
     </message>
     <message>
         <source>重命名</source>

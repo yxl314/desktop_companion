@@ -7,6 +7,17 @@
 #include <QVector>
 
 /// 应用配置；保存到数据目录的 config.json，采用原子写。
+struct ModelProfile
+{
+    QString name;
+    QString preset;
+    QString baseUrl;
+    QString apiKey;
+    QString model;
+    double temperature = 0.8;
+    int maxTokens = 0;
+};
+
 struct AppConfig
 {
     QString preset = QStringLiteral("ollama");
@@ -15,6 +26,8 @@ struct AppConfig
     QString model = QStringLiteral("qwen2.5:7b");
     double temperature = 0.8;
     int maxTokens = 0;
+    QVector<ModelProfile> modelProfiles;
+    int activeProfile = -1;
     QString personaId;
     QString characterId;
     bool idleMotion = true;
@@ -27,6 +40,7 @@ struct AppConfig
     int mode = 0; // 0 休闲 1 工作 2 勿扰
     int theme = 0; // 0 浅色 1 深色 2 跟随系统
     int language = 2; // 0 中文 1 English 2 跟随系统
+    bool autoMode = false; // 按前台应用自动切换模式
     bool ballVisible = true;
     double ballX = -1.0;
     double ballY = -1.0;
@@ -60,6 +74,8 @@ public:
     void setTheme(int theme);
     void setLanguage(int language);
     void setGeneration(double temperature, int maxTokens);
+    void setModelProfiles(const QVector<ModelProfile> &profiles, int activeIndex);
+    void setAutoMode(bool enabled);
     void setBall(bool visible, double x, double y);
     void setOnboardingDone(bool done);
     void setUpdateUrl(const QString &url);

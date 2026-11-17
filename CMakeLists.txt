@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(desktop_companion VERSION 0.9.2 LANGUAGES CXX)
+project(desktop_companion VERSION 0.9.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -29,6 +29,7 @@ qt_add_executable(desktop_companion WIN32
     src/intimacyservice.h src/intimacyservice.cpp
     src/petwindowhelper.h src/petwindowhelper.cpp
     src/globalhotkey.h src/globalhotkey.cpp
+    src/foregroundwatcher.h src/foregroundwatcher.cpp
     src/memorystore.h src/memorystore.cpp
     src/personafile.h src/personafile.cpp
     src/promptbuilder.h src/promptbuilder.cpp

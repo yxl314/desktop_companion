@@ -269,6 +269,24 @@ Window {
                     }
                 }
                 RowLayout {
+                    Label { text: qsTr("模型配置") }
+                    ComboBox {
+                        id: profileBox
+                        Layout.preferredWidth: 200
+                        model: bridge.modelProfiles
+                        textRole: "name"
+                        onActivated: profileBox.currentIndex = currentIndex
+                    }
+                    Button { text: qsTr("应用"); onClicked: bridge.applyModelProfile(profileBox.currentIndex) }
+                    Button {
+                        text: qsTr("保存为配置")
+                        onClicked: root.askText(qsTr("配置名称"), "",
+                                                (text) => bridge.saveModelProfile(text))
+                    }
+                    Button { text: qsTr("删除配置"); onClicked: bridge.deleteModelProfile(profileBox.currentIndex) }
+                    Item { Layout.fillWidth: true }
+                }
+                RowLayout {
                     Button {
                         text: qsTr("测试连接")
                         onClicked: bridge.testLlmConnection(baseUrlField.text, apiKeyField.text, modelField.text)
@@ -663,6 +681,11 @@ Window {
                     text: qsTr("隐藏桌宠时显示悬浮球")
                     checked: bridge.ballVisible
                     onToggled: bridge.ballVisible = checked
+                }
+                CheckBox {
+                    text: qsTr("按前台应用自动切换模式（工作/休闲）")
+                    checked: bridge.autoMode
+                    onToggled: bridge.autoMode = checked
                 }
                 Label {
                     Layout.fillWidth: true

@@ -75,6 +75,24 @@ void ConfigStore::load()
     m_config.mode = qBound(0, root.value(QStringLiteral("mode")).toInt(0), 2);
     m_config.theme = qBound(0, root.value(QStringLiteral("theme")).toInt(0), 2);
     m_config.language = qBound(0, root.value(QStringLiteral("language")).toInt(2), 2);
+    m_config.autoMode = root.value(QStringLiteral("autoMode")).toBool(false);
+    m_config.modelProfiles.clear();
+    const QJsonArray profiles = root.value(QStringLiteral("modelProfiles")).toArray();
+    for (const QJsonValue &value : profiles) {
+        const QJsonObject object = value.toObject();
+        ModelProfile profile;
+        profile.name = object.value(QStringLiteral("name")).toString();
+        profile.preset = object.value(QStringLiteral("preset")).toString();
+        profile.baseUrl = object.value(QStringLiteral("baseUrl")).toString();
+        const QString protectedKey = object.value(QStringLiteral("apiKeyProtected")).toString();
+        profile.apiKey = protectedKey.isEmpty() ? object.value(QStringLiteral("apiKey")).toString()
+                                                : secrets::unprotect(protectedKey);
+        profile.model = object.value(QStringLiteral("model")).toString();
+        profile.temperature = object.value(QStringLiteral("temperature")).toDouble(0.8);
+        profile.maxTokens = object.value(QStringLiteral("maxTokens")).toInt(0);
+        m_config.modelProfiles.append(profile);
+    }
+    m_config.activeProfile = root.value(QStringLiteral("activeProfile")).toInt(-1);
     m_config.ballVisible = root.value(QStringLiteral("ballVisible")).toBool(true);
     m_config.ballX = root.value(QStringLiteral("ballX")).toDouble(-1.0);
     m_config.ballY = root.value(QStringLiteral("ballY")).toDouble(-1.0);
@@ -129,6 +147,23 @@ bool ConfigStore::save(QString *error)
     root.insert(QStringLiteral("mode"), m_config.mode);
     root.insert(QStringLiteral("theme"), m_config.theme);
     root.insert(QStringLiteral("language"), m_config.language);
+    root.insert(QStringLiteral("autoMode"), m_config.autoMode);
+    QJsonArray profiles;
+    for (const ModelProfile &profile : m_config.modelProfiles) {
+        QJsonObject object;
+        object.insert(QStringLiteral("name"), profile.name);
+        object.insert(QStringLiteral("preset"), profile.preset);
+        object.insert(QStringLiteral("baseUrl"), profile.baseUrl);
+        const QString protectedKey = secrets::protect(profile.apiKey);
+        if (!protectedKey.isEmpty())
+            object.insert(QStringLiteral("apiKeyProtected"), protectedKey);
+        object.insert(QStringLiteral("model"), profile.model);
+        object.insert(QStringLiteral("temperature"), profile.temperature);
+        object.insert(QStringLiteral("maxTokens"), profile.maxTokens);
+        profiles.append(object);
+    }
+    root.insert(QStringLiteral("modelProfiles"), profiles);
+    root.insert(QStringLiteral("activeProfile"), m_config.activeProfile);
     root.insert(QStringLiteral("ballVisible"), m_config.ballVisible);
     root.insert(QStringLiteral("ballX"), m_config.ballX);
     root.insert(QStringLiteral("ballY"), m_config.ballY);
@@ -227,6 +262,19 @@ void ConfigStore::setGeneration(double temperature, int maxTokens)
 {
     m_config.temperature = temperature;
     m_config.maxTokens = maxTokens;
+    emit changed();
+}
+
+void ConfigStore::setModelProfiles(const QVector<ModelProfile> &profiles, int activeIndex)
+{
+    m_config.modelProfiles = profiles;
+    m_config.activeProfile = activeIndex;
+    emit changed();
+}
+
+void ConfigStore::setAutoMode(bool enabled)
+{
+    m_config.autoMode = enabled;
     emit changed();
 }
 

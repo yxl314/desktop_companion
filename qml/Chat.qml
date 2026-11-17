@@ -62,11 +62,32 @@ Window {
         }
     }
 
+    function parseCard(text) {
+        if (text.indexOf("```card") !== 0)
+            return { "card": false, "title": "", "body": "" }
+        var rest = text.substring(7).replace(/^\s*\n/, "")
+        var close = rest.lastIndexOf("```")
+        var inner = close >= 0 ? rest.substring(0, close) : rest
+        var nl = inner.indexOf("\n")
+        return {
+            "card": true,
+            "title": (nl >= 0 ? inner.substring(0, nl) : inner).trim(),
+            "body": (nl >= 0 ? inner.substring(nl + 1) : "").trim()
+        }
+    }
+
+    function rowFor(role, text, id, feedback) {
+        var card = root.parseCard(text)
+        return { "role": role, "text": text, "id": (id === undefined ? -1 : id),
+                 "feedback": (feedback === undefined ? 0 : feedback),
+                 "card": card.card, "cardTitle": card.title, "cardBody": card.body,
+                 "expanded": false }
+    }
+
     Component.onCompleted: {
         const history = bridge.initialMessages()
         for (let i = 0; i < history.length; ++i)
-            messages.append({ "role": history[i].role, "text": history[i].text,
-                              "id": history[i].id, "feedback": history[i].feedback })
+            messages.append(root.rowFor(history[i].role, history[i].text, history[i].id, history[i].feedback))
     }
 
     ColumnLayout {
@@ -167,7 +188,11 @@ Window {
                                 id: bubbleText
                                 width: parent.width - 20
                                 anchors.centerIn: parent
-                                text: model.text
+                                text: model.card
+                                      ? (model.expanded ? "**" + model.cardTitle + "**\n\n" + model.cardBody
+                                                        : "**" + model.cardTitle + "**")
+                                      : model.text
+                                textFormat: model.card ? Text.MarkdownText : Text.PlainText
                                 wrapMode: Text.Wrap
                                 color: bridge.textColor
                                 font.pixelSize: 14
@@ -178,6 +203,13 @@ Window {
                     Row {
                         visible: model.role !== "user"
                         spacing: 2
+                        Button {
+                            text: model.expanded ? qsTr("收起") : qsTr("展开")
+                            visible: model.card
+                            flat: true
+                            font.pixelSize: 11
+                            onClicked: messages.setProperty(index, "expanded", !model.expanded)
+                        }
                         Button {
                             text: "👍"
                             flat: true
@@ -291,7 +323,7 @@ Window {
     Connections {
         target: bridge
         function onChatMessage(role, text) {
-            messages.append({ "role": role, "text": text, "id": -1, "feedback": 0 })
+            messages.append(root.rowFor(role, text))
         }
         function onAssistantStored(messageId) {
             if (messages.count > 0 && messages.get(messages.count - 1).role === "assistant")
@@ -299,7 +331,7 @@ Window {
         }
         function onChatDelta(text) {
             if (messages.count === 0 || messages.get(messages.count - 1).role !== "assistant")
-                messages.append({ "role": "assistant", "text": "", "id": -1, "feedback": 0 })
+                messages.append(root.rowFor("assistant", ""))
             const index = messages.count - 1
             messages.setProperty(index, "text", messages.get(index).text + text)
         }
@@ -307,6 +339,15 @@ Window {
             errorLabel.text = message
         }
         function onChatDone() {
+            if (messages.count > 0 && messages.get(messages.count - 1).role === "assistant") {
+                var last = messages.get(messages.count - 1)
+                var card = root.parseCard(last.text)
+                if (card.card) {
+                    messages.setProperty(messages.count - 1, "card", true)
+                    messages.setProperty(messages.count - 1, "cardTitle", card.title)
+                    messages.setProperty(messages.count - 1, "cardBody", card.body)
+                }
+            }
             if (errorLabel.text === "")
                 errorLabel.text = ""
         }
@@ -315,8 +356,7 @@ Window {
             errorLabel.text = ""
             const history = bridge.initialMessages()
             for (let i = 0; i < history.length; ++i)
-                messages.append({ "role": history[i].role, "text": history[i].text,
-                              "id": history[i].id, "feedback": history[i].feedback })
+                messages.append(root.rowFor(history[i].role, history[i].text, history[i].id, history[i].feedback))
         }
         function onChatStateChanged(state) {
             if (state === "thinking" || state === "streaming")

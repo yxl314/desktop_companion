@@ -35,6 +35,7 @@
 #include "characterstore.h"
 #include "chatstore.h"
 #include "errorcodes.h"
+#include "foregroundwatcher.h"
 #include "hitareameta.h"
 #include "intimacyservice.h"
 #include "memorystore.h"
@@ -1722,6 +1723,106 @@ void Bridge::toggleMemoryPin(qint64 id)
         emit memoriesChanged();
         return;
     }
+}
+
+bool Bridge::autoMode() const
+{
+    return m_config->values().autoMode;
+}
+
+void Bridge::setAutoMode(bool enabled)
+{
+    m_config->setAutoMode(enabled);
+    m_config->save();
+    if (enabled)
+        m_foreground->start();
+    else
+        m_foreground->stop();
+    emit settingsChanged();
+}
+
+QVariantList Bridge::modelProfiles() const
+{
+    QVariantList result;
+    const int active = m_config->values().activeProfile;
+    const QVector<ModelProfile> profiles = m_config->values().modelProfiles;
+    for (int i = 0; i < profiles.size(); ++i) {
+        QVariantMap item;
+        item.insert(QStringLiteral("index"), i);
+        item.insert(QStringLiteral("name"), profiles.at(i).name);
+        item.insert(QStringLiteral("preset"), profiles.at(i).preset);
+        item.insert(QStringLiteral("baseUrl"), profiles.at(i).baseUrl);
+        item.insert(QStringLiteral("model"), profiles.at(i).model);
+        item.insert(QStringLiteral("active"), i == active);
+        result.append(item);
+    }
+    return result;
+}
+
+void Bridge::saveModelProfile(const QString &name)
+{
+    const QString trimmed = name.trimmed();
+    if (trimmed.isEmpty()) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("配置名称不能为空"));
+        return;
+    }
+    QVector<ModelProfile> profiles = m_config->values().modelProfiles;
+    int index = -1;
+    for (int i = 0; i < profiles.size(); ++i) {
+        if (profiles.at(i).name == trimmed) {
+            index = i;
+            break;
+        }
+    }
+    ModelProfile profile;
+    profile.name = trimmed;
+    profile.preset = m_config->values().preset;
+    profile.baseUrl = m_config->values().baseUrl;
+    profile.apiKey = m_config->values().apiKey;
+    profile.model = m_config->values().model;
+    profile.temperature = m_config->values().temperature;
+    profile.maxTokens = m_config->values().maxTokens;
+    if (index >= 0)
+        profiles[index] = profile;
+    else {
+        profiles.append(profile);
+        index = profiles.size() - 1;
+    }
+    m_config->setModelProfiles(profiles, index);
+    m_config->save();
+    emit profilesChanged();
+    reportInfo(QStringLiteral("已保存模型配置：%1").arg(trimmed));
+}
+
+void Bridge::applyModelProfile(int index)
+{
+    const QVector<ModelProfile> profiles = m_config->values().modelProfiles;
+    if (index < 0 || index >= profiles.size())
+        return;
+    const ModelProfile &profile = profiles.at(index);
+    m_config->setLlm(profile.preset, profile.baseUrl, profile.apiKey, profile.model);
+    m_config->setGeneration(profile.temperature, profile.maxTokens);
+    m_config->setModelProfiles(profiles, index);
+    m_config->save();
+    emit profilesChanged();
+    emit settingsChanged();
+    reportInfo(QStringLiteral("已应用模型配置：%1").arg(profile.name));
+}
+
+void Bridge::deleteModelProfile(int index)
+{
+    QVector<ModelProfile> profiles = m_config->values().modelProfiles;
+    if (index < 0 || index >= profiles.size())
+        return;
+    profiles.removeAt(index);
+    int active = m_config->values().activeProfile;
+    if (active == index)
+        active = -1;
+    else if (active > index)
+        --active;
+    m_config->setModelProfiles(profiles, active);
+    m_config->save();
+    emit profilesChanged();
 }
 
 QString Bridge::feedbackSummary() const
