@@ -9,7 +9,7 @@ Window {
     width: 460
     height: 640
     visible: bridge.chatVisible
-    title: qsTr("聊天 · ") + bridge.personaName
+    title: qsTr("聊天 · ") + bridge.chatTitle
     x: (Screen.width - width) / 2
     y: (Screen.height - height) / 2
     color: bridge.windowColor
@@ -100,7 +100,7 @@ Window {
         RowLayout {
             Layout.fillWidth: true
             Label {
-                text: bridge.personaName
+                text: bridge.chatTitle
                 font.pixelSize: 16
                 font.bold: true
                 color: bridge.textColor

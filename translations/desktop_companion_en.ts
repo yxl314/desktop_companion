@@ -2,6 +2,173 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en_US">
 <context>
+    <name>Bridge</name>
+    <message>
+        <source>世界观已保存</source>
+        <translation>World saved</translation>
+    </message>
+    <message>
+        <source>世界观已删除</source>
+        <translation>World deleted</translation>
+    </message>
+    <message>
+        <source>世界观已重命名</source>
+        <translation>World renamed</translation>
+    </message>
+    <message>
+        <source>人设已保存</source>
+        <translation>Persona saved</translation>
+    </message>
+    <message>
+        <source>人设已存在：%1</source>
+        <translation>Persona already exists: %1</translation>
+    </message>
+    <message>
+        <source>切换角色</source>
+        <translation>Switch character</translation>
+    </message>
+    <message>
+        <source>回复中…</source>
+        <translation>Replying…</translation>
+    </message>
+    <message>
+        <source>已保存模型配置：%1</source>
+        <translation>Model profile saved: %1</translation>
+    </message>
+    <message>
+        <source>已切换人设：%1</source>
+        <translation>Persona switched: %1</translation>
+    </message>
+    <message>
+        <source>已创建世界观：%1</source>
+        <translation>World created: %1</translation>
+    </message>
+    <message>
+        <source>已创建人设：%1</source>
+        <translation>Persona created: %1</translation>
+    </message>
+    <message>
+        <source>已创建角色：%1</source>
+        <translation>Character created: %1</translation>
+    </message>
+    <message>
+        <source>已删除角色</source>
+        <translation>Character deleted</translation>
+    </message>
+    <message>
+        <source>已回溯，之后的消息与记忆已清除</source>
+        <translation>Rewound; later messages and memories removed</translation>
+    </message>
+    <message>
+        <source>已导入世界观</source>
+        <translation>World imported</translation>
+    </message>
+    <message>
+        <source>已导入人设：%1</source>
+        <translation>Persona imported: %1</translation>
+    </message>
+    <message>
+        <source>已导入角色：%1</source>
+        <translation>Character imported: %1</translation>
+    </message>
+    <message>
+        <source>已导出 %1 个日志文件到 %2</source>
+        <translation>Exported %1 log files to %2</translation>
+    </message>
+    <message>
+        <source>已应用模型配置：%1</source>
+        <translation>Model profile applied: %1</translation>
+    </message>
+    <message>
+        <source>已更新角色世界观</source>
+        <translation>Character world updated</translation>
+    </message>
+    <message>
+        <source>已更新角色形象</source>
+        <translation>Avatar updated</translation>
+    </message>
+    <message>
+        <source>已更新角色形象；图片无透明通道，点击穿透会按整张图矩形生效</source>
+        <translation>Avatar updated; no alpha channel, click-through uses the full rectangle</translation>
+    </message>
+    <message>
+        <source>已添加记忆</source>
+        <translation>Memory added</translation>
+    </message>
+    <message>
+        <source>已重启对话，记忆已重置</source>
+        <translation>Chat restarted; memories reset</translation>
+    </message>
+    <message>
+        <source>已重命名角色</source>
+        <translation>Character renamed</translation>
+    </message>
+    <message>
+        <source>思考中…</source>
+        <translation>Thinking…</translation>
+    </message>
+    <message>
+        <source>我已经在桌面上啦～</source>
+        <translation>I am already on your desktop~</translation>
+    </message>
+    <message>
+        <source>打开聊天</source>
+        <translation>Open chat</translation>
+    </message>
+    <message>
+        <source>桌宠 %1 已切换到：%2</source>
+        <translation>Pet %1 switched to: %2</translation>
+    </message>
+    <message>
+        <source>聊天库不可用</source>
+        <translation>Chat store unavailable</translation>
+    </message>
+    <message>
+        <source>聊天记录已导出：%1</source>
+        <translation>Chat history exported: %1</translation>
+    </message>
+    <message>
+        <source>角色不存在：%1</source>
+        <translation>Character not found: %1</translation>
+    </message>
+    <message>
+        <source>角色包已导出：%1</source>
+        <translation>Character pack exported: %1</translation>
+    </message>
+    <message>
+        <source>记忆已更新</source>
+        <translation>Memory updated</translation>
+    </message>
+    <message>
+        <source>设置…</source>
+        <translation>Settings…</translation>
+    </message>
+    <message>
+        <source>请先选择角色</source>
+        <translation>Select a character first</translation>
+    </message>
+    <message>
+        <source>请先选择角色并填写记忆内容</source>
+        <translation>Select a character and enter memory content</translation>
+    </message>
+    <message>
+        <source>还没有角色</source>
+        <translation>No characters yet</translation>
+    </message>
+    <message>
+        <source>退出</source>
+        <translation>Quit</translation>
+    </message>
+    <message>
+        <source>配置名称不能为空</source>
+        <translation>Profile name cannot be empty</translation>
+    </message>
+    <message>
+        <source>隐藏桌宠</source>
+        <translation>Hide pet</translation>
+    </message>
+</context>
+<context>
     <name>Chat</name>
     <message>
         <source>今天有什么好玩的</source>
@@ -78,6 +245,48 @@
     <message>
         <source>重试</source>
         <translation>Retry</translation>
+    </message>
+</context>
+<context>
+    <name>IntimacyService</name>
+    <message>
+        <source>亲近</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>信赖</source>
+        <translation>Trusted</translation>
+    </message>
+    <message>
+        <source>熟悉</source>
+        <translation>Familiar</translation>
+    </message>
+    <message>
+        <source>陌生</source>
+        <translation>Stranger</translation>
+    </message>
+</context>
+<context>
+    <name>Main</name>
+    <message>
+        <source>打开聊天</source>
+        <translation>Open chat</translation>
+    </message>
+    <message>
+        <source>显示 / 隐藏桌宠</source>
+        <translation>Show / hide pet</translation>
+    </message>
+    <message>
+        <source>桌面桌宠（原型）</source>
+        <translation>Desktop Companion (prototype)</translation>
+    </message>
+    <message>
+        <source>设置…</source>
+        <translation>Settings…</translation>
+    </message>
+    <message>
+        <source>退出</source>
+        <translation>Quit</translation>
     </message>
 </context>
 <context>
@@ -447,6 +656,10 @@
         <translation>System</translation>
     </message>
     <message>
+        <source>跨天衰减</source>
+        <translation>Daily decay</translation>
+    </message>
+    <message>
         <source>输入</source>
         <translation>Input</translation>
     </message>
@@ -469,6 +682,10 @@
     <message>
         <source>隐藏桌宠时显示悬浮球</source>
         <translation>Show floating ball when pet is hidden</translation>
+    </message>
+    <message>
+        <source>预览</source>
+        <translation>Preview</translation>
     </message>
     <message>
         <source>预设</source>

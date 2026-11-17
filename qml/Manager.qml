@@ -136,12 +136,37 @@ Window {
 
         onAccepted: bridge.saveWorldBody(worldDialog.worldId, bodyArea2.text)
 
+        property bool preview: false
         contentItem: ColumnLayout {
-            Label { text: qsTr("世界观正文（作为提示词的世界观段落）") }
+            RowLayout {
+                Label { text: qsTr("世界观正文（作为提示词的世界观段落）") }
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: worldDialog.preview ? qsTr("编辑") : qsTr("预览")
+                    onClicked: worldDialog.preview = !worldDialog.preview
+                }
+            }
             ScrollView {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 220
-                TextArea { id: bodyArea2; wrapMode: TextArea.Wrap }
+                TextArea {
+                    id: bodyArea2
+                    wrapMode: TextArea.Wrap
+                    visible: !worldDialog.preview
+                }
+            }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 220
+                visible: worldDialog.preview
+                Text {
+                    width: 480
+                    text: bodyArea2.text
+                    textFormat: Text.MarkdownText
+                    wrapMode: Text.Wrap
+                    color: bridge.textColor
+                    font.pixelSize: 13
+                }
             }
         }
     }
@@ -411,6 +436,11 @@ Window {
                         text: qsTr("好感度：") + bridge.intimacyScore + qsTr("（") + bridge.intimacyLevel + qsTr("）")
                         color: bridge.secondaryTextColor
                         font.pixelSize: 12
+                    }
+                    CheckBox {
+                        text: qsTr("跨天衰减")
+                        checked: bridge.intimacyDecay
+                        onToggled: bridge.intimacyDecay = checked
                     }
                 }
                 ListView {

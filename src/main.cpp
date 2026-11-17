@@ -283,13 +283,13 @@ int main(int argc, char *argv[])
     doorbellTimer.start();
 
     QSystemTrayIcon tray(QIcon(QStringLiteral(":/pet.png")));
-    tray.setToolTip(QStringLiteral("桌面桌宠（原型）"));
+    tray.setToolTip(QCoreApplication::translate("Main", "桌面桌宠（原型）"));
     QMenu trayMenu;
-    QAction *toggleAction = trayMenu.addAction(QStringLiteral("显示 / 隐藏桌宠"));
-    QAction *chatAction = trayMenu.addAction(QStringLiteral("打开聊天"));
-    QAction *settingsAction = trayMenu.addAction(QStringLiteral("设置…"));
+    QAction *toggleAction = trayMenu.addAction(QCoreApplication::translate("Main", "显示 / 隐藏桌宠"));
+    QAction *chatAction = trayMenu.addAction(QCoreApplication::translate("Main", "打开聊天"));
+    QAction *settingsAction = trayMenu.addAction(QCoreApplication::translate("Main", "设置…"));
     trayMenu.addSeparator();
-    QAction *quitAction = trayMenu.addAction(QStringLiteral("退出"));
+    QAction *quitAction = trayMenu.addAction(QCoreApplication::translate("Main", "退出"));
     QObject::connect(toggleAction, &QAction::triggered, &bridge, &Bridge::togglePet);
     QObject::connect(chatAction, &QAction::triggered, &bridge, &Bridge::openChat);
     QObject::connect(settingsAction, &QAction::triggered, &bridge, &Bridge::openManager);

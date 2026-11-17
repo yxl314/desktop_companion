@@ -76,6 +76,7 @@ void ConfigStore::load()
     m_config.theme = qBound(0, root.value(QStringLiteral("theme")).toInt(0), 2);
     m_config.language = qBound(0, root.value(QStringLiteral("language")).toInt(2), 2);
     m_config.autoMode = root.value(QStringLiteral("autoMode")).toBool(false);
+    m_config.intimacyDecay = root.value(QStringLiteral("intimacyDecay")).toBool(false);
     m_config.modelProfiles.clear();
     const QJsonArray profiles = root.value(QStringLiteral("modelProfiles")).toArray();
     for (const QJsonValue &value : profiles) {
@@ -148,6 +149,7 @@ bool ConfigStore::save(QString *error)
     root.insert(QStringLiteral("theme"), m_config.theme);
     root.insert(QStringLiteral("language"), m_config.language);
     root.insert(QStringLiteral("autoMode"), m_config.autoMode);
+    root.insert(QStringLiteral("intimacyDecay"), m_config.intimacyDecay);
     QJsonArray profiles;
     for (const ModelProfile &profile : m_config.modelProfiles) {
         QJsonObject object;
@@ -269,6 +271,12 @@ void ConfigStore::setModelProfiles(const QVector<ModelProfile> &profiles, int ac
 {
     m_config.modelProfiles = profiles;
     m_config.activeProfile = activeIndex;
+    emit changed();
+}
+
+void ConfigStore::setIntimacyDecay(bool enabled)
+{
+    m_config.intimacyDecay = enabled;
     emit changed();
 }
 

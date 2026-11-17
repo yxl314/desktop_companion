@@ -85,6 +85,8 @@ class Bridge : public QObject
     Q_PROPERTY(int maxTokens READ maxTokens WRITE setMaxTokens NOTIFY settingsChanged)
     Q_PROPERTY(QString feedbackSummary READ feedbackSummary NOTIFY feedbackChanged)
     Q_PROPERTY(bool autoMode READ autoMode WRITE setAutoMode NOTIFY settingsChanged)
+    Q_PROPERTY(bool intimacyDecay READ intimacyDecay WRITE setIntimacyDecay NOTIFY settingsChanged)
+    Q_PROPERTY(QString chatTitle READ chatTitle NOTIFY intimacyChanged)
     Q_PROPERTY(QVariantList modelProfiles READ modelProfiles NOTIFY profilesChanged)
 
 public:
@@ -147,8 +149,11 @@ public:
     void setOnboardingDone(bool done);
     QString updateResult() const { return m_updateResult; }
     QString feedbackSummary() const;
+    QString chatTitle() const;
     bool autoMode() const;
     void setAutoMode(bool enabled);
+    bool intimacyDecay() const;
+    void setIntimacyDecay(bool enabled);
     QVariantList modelProfiles() const;
     int theme() const;
     void setTheme(int theme);

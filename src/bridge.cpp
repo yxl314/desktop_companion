@@ -117,9 +117,9 @@ Bridge::Bridge(QObject *parent)
     });
     connect(m_chat, &ChatService::stateChanged, this, [this](const QString &state) {
         if (state == QLatin1String("thinking"))
-            setStatusText(QStringLiteral("思考中…"));
+            setStatusText(tr("思考中…"));
         else if (state == QLatin1String("streaming"))
-            setStatusText(QStringLiteral("回复中…"));
+            setStatusText(tr("回复中…"));
         else
             setStatusText(QString());
         emit chatStateChanged(state);
@@ -588,7 +588,7 @@ void Bridge::importPersona()
         return;
     }
     emit personasChanged();
-    setStatusText(QStringLiteral("已导入人设：%1").arg(QFileInfo(path).completeBaseName()));
+    setStatusText(tr("已导入人设：%1").arg(QFileInfo(path).completeBaseName()));
 }
 
 void Bridge::removePersona(const QString &personaId)
@@ -631,7 +631,7 @@ void Bridge::selectPersona(const QString &personaId)
         applyCharacterContext();
         emit settingsChanged();
         emit personasChanged();
-        setStatusText(QStringLiteral("已切换人设：%1").arg(personaName()));
+        setStatusText(tr("已切换人设：%1").arg(personaName()));
         return;
     }
 
@@ -640,7 +640,7 @@ void Bridge::selectPersona(const QString &personaId)
     applyCharacterContext();
     emit settingsChanged();
     emit personasChanged();
-    setStatusText(QStringLiteral("已切换人设：%1").arg(personaName()));
+    setStatusText(tr("已切换人设：%1").arg(personaName()));
 }
 
 void Bridge::togglePet()
@@ -651,7 +651,8 @@ void Bridge::togglePet()
 
 void Bridge::notifyAlreadyRunning()
 {
-    m_bubbleText = QStringLiteral("我已经在桌面上啦～");
+    setPetVisible(true);
+    m_bubbleText = tr("我已经在桌面上啦～");
     emit bubbleTextChanged();
     positionBubble(m_petX, m_petY);
     setBubbleVisible(true);
@@ -662,15 +663,15 @@ void Bridge::showPetMenu(int index)
 {
     m_activePetIndex = index;
     QMenu menu;
-    QAction *chatAction = menu.addAction(QStringLiteral("打开聊天"));
-    QAction *characterAction = menu.addAction(QStringLiteral("切换角色"));
-    QAction *settingsAction = menu.addAction(QStringLiteral("设置…"));
+    QAction *chatAction = menu.addAction(tr("打开聊天"));
+    QAction *characterAction = menu.addAction(tr("切换角色"));
+    QAction *settingsAction = menu.addAction(tr("设置…"));
     QAction *throughAction = menu.addAction(m_config->values().clickThrough
                                                 ? QStringLiteral("关闭点击穿透")
                                                 : QStringLiteral("开启点击穿透"));
-    QAction *hideAction = menu.addAction(QStringLiteral("隐藏桌宠"));
+    QAction *hideAction = menu.addAction(tr("隐藏桌宠"));
     menu.addSeparator();
-    QAction *quitAction = menu.addAction(QStringLiteral("退出"));
+    QAction *quitAction = menu.addAction(tr("退出"));
 
     QAction *chosen = menu.exec(QCursor::pos());
     if (chosen == chatAction)
@@ -865,6 +866,9 @@ void Bridge::applyCharacterContext()
 
         QString intimacyError;
         m_intimacy->load(characterId, &intimacyError);
+        m_intimacy->setDecayEnabled(m_config->values().intimacyDecay);
+        if (m_config->values().intimacyDecay)
+            m_intimacy->applyDailyDecay();
         emit intimacyChanged();
         emit avatarPathChanged();
     } else {
@@ -891,7 +895,7 @@ void Bridge::createCharacter(const QString &name)
     m_config->save();
     applyCharacterContext();
     refreshCharacters();
-    reportInfo(QStringLiteral("已创建角色：%1").arg(name));
+    reportInfo(tr("已创建角色：%1").arg(name));
 }
 
 void Bridge::renameCharacter(const QString &id, const QString &newName)
@@ -903,7 +907,7 @@ void Bridge::renameCharacter(const QString &id, const QString &newName)
     }
     refreshCharacters();
     emit settingsChanged();
-    reportInfo(QStringLiteral("已重命名角色"));
+    reportInfo(tr("已重命名角色"));
 }
 
 void Bridge::removeCharacter(const QString &id)
@@ -920,13 +924,13 @@ void Bridge::removeCharacter(const QString &id)
         applyCharacterContext();
     }
     refreshCharacters();
-    reportInfo(QStringLiteral("已删除角色"));
+    reportInfo(tr("已删除角色"));
 }
 
 void Bridge::selectCharacter(const QString &id)
 {
     if (!m_characters->contains(id)) {
-        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("角色不存在：%1").arg(id));
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), tr("角色不存在：%1").arg(id));
         return;
     }
     m_config->setCharacterId(id);
@@ -941,7 +945,7 @@ void Bridge::importAvatarFile()
 {
     const QString characterId = m_config->values().characterId;
     if (characterId.isEmpty()) {
-        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), tr("请先选择角色"));
         return;
     }
     const QString path = QFileDialog::getOpenFileName(nullptr, QStringLiteral("选择角色形象"),
@@ -957,9 +961,9 @@ void Bridge::importAvatarFile()
     refreshCharacters();
     const QImage image(path);
     if (!image.isNull() && !image.hasAlphaChannel())
-        reportInfo(QStringLiteral("已更新角色形象；图片无透明通道，点击穿透会按整张图矩形生效"));
+        reportInfo(tr("已更新角色形象；图片无透明通道，点击穿透会按整张图矩形生效"));
     else
-        reportInfo(QStringLiteral("已更新角色形象"));
+        reportInfo(tr("已更新角色形象"));
 }
 
 QVariantMap Bridge::personaFields(const QString &personaId) const
@@ -991,7 +995,7 @@ void Bridge::savePersonaFields(const QVariantMap &fields)
 {
     const QString characterId = m_config->values().characterId;
     if (characterId.isEmpty()) {
-        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), tr("请先选择角色"));
         return;
     }
 
@@ -1019,14 +1023,14 @@ void Bridge::savePersonaFields(const QVariantMap &fields)
     }
     applyCharacterContext();
     emit personasChanged();
-    reportInfo(QStringLiteral("人设已保存"));
+    reportInfo(tr("人设已保存"));
 }
 
 void Bridge::createPersona(const QString &name)
 {
     const QString characterId = m_config->values().characterId;
     if (characterId.isEmpty()) {
-        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), tr("请先选择角色"));
         return;
     }
     PersonaData data;
@@ -1041,14 +1045,14 @@ void Bridge::createPersona(const QString &name)
     m_config->save();
     applyCharacterContext();
     emit personasChanged();
-    reportInfo(QStringLiteral("已创建人设：%1").arg(data.name));
+    reportInfo(tr("已创建人设：%1").arg(data.name));
 }
 
 void Bridge::importPersonaFile()
 {
     const QString characterId = m_config->values().characterId;
     if (characterId.isEmpty()) {
-        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), tr("请先选择角色"));
         return;
     }
     const QString path = QFileDialog::getOpenFileName(nullptr, QStringLiteral("导入人设（Markdown）"),
@@ -1065,7 +1069,7 @@ void Bridge::importPersonaFile()
     for (const PersonaData &existing : m_characters->personas(characterId)) {
         if (existing.name == data.name) {
             reportError(static_cast<quint32>(ErrorCode::FileNameConflict),
-                        QStringLiteral("人设已存在：%1").arg(data.name));
+                        tr("人设已存在：%1").arg(data.name));
             return;
         }
     }
@@ -1078,7 +1082,7 @@ void Bridge::importPersonaFile()
     m_config->save();
     applyCharacterContext();
     emit personasChanged();
-    reportInfo(QStringLiteral("已导入人设：%1").arg(data.name));
+    reportInfo(tr("已导入人设：%1").arg(data.name));
 }
 
 void Bridge::createWorld(const QString &name)
@@ -1090,7 +1094,7 @@ void Bridge::createWorld(const QString &name)
         return;
     }
     refreshWorlds();
-    reportInfo(QStringLiteral("已创建世界观：%1").arg(name));
+    reportInfo(tr("已创建世界观：%1").arg(name));
 }
 
 void Bridge::renameWorld(const QString &id, const QString &newName)
@@ -1101,7 +1105,7 @@ void Bridge::renameWorld(const QString &id, const QString &newName)
         return;
     }
     refreshWorlds();
-    reportInfo(QStringLiteral("世界观已重命名"));
+    reportInfo(tr("世界观已重命名"));
 }
 
 void Bridge::removeWorld(const QString &id)
@@ -1112,7 +1116,7 @@ void Bridge::removeWorld(const QString &id)
         return;
     }
     refreshWorlds();
-    reportInfo(QStringLiteral("世界观已删除"));
+    reportInfo(tr("世界观已删除"));
 }
 
 void Bridge::saveWorldBody(const QString &id, const QString &body)
@@ -1131,7 +1135,7 @@ void Bridge::saveWorldBody(const QString &id, const QString &body)
     refreshWorlds();
     applyCharacterContext();
     emit worldsChanged();
-    reportInfo(QStringLiteral("世界观已保存"));
+    reportInfo(tr("世界观已保存"));
 }
 
 void Bridge::importWorldFile()
@@ -1147,14 +1151,14 @@ void Bridge::importWorldFile()
         return;
     }
     refreshWorlds();
-    reportInfo(QStringLiteral("已导入世界观"));
+    reportInfo(tr("已导入世界观"));
 }
 
 void Bridge::assignCharacterWorld(const QString &worldId)
 {
     const QString characterId = m_config->values().characterId;
     if (characterId.isEmpty()) {
-        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), tr("请先选择角色"));
         return;
     }
     QString error;
@@ -1165,7 +1169,7 @@ void Bridge::assignCharacterWorld(const QString &worldId)
     applyCharacterContext();
     refreshWorlds();
     refreshCharacters();
-    reportInfo(QStringLiteral("已更新角色世界观"));
+    reportInfo(tr("已更新角色世界观"));
 }
 
 QString Bridge::currentCharacterDir() const
@@ -1180,7 +1184,7 @@ void Bridge::exportCharacterPack()
 {
     const QString characterId = m_config->values().characterId;
     if (characterId.isEmpty()) {
-        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色"));
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), tr("请先选择角色"));
         return;
     }
     const QString defaultName = characterId + QStringLiteral("-pack.zip");
@@ -1194,7 +1198,7 @@ void Bridge::exportCharacterPack()
         reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
         return;
     }
-    reportInfo(QStringLiteral("角色包已导出：%1").arg(path));
+    reportInfo(tr("角色包已导出：%1").arg(path));
 }
 
 void Bridge::importCharacterPack()
@@ -1210,13 +1214,13 @@ void Bridge::importCharacterPack()
         return;
     }
     refreshCharacters();
-    reportInfo(QStringLiteral("已导入角色：%1").arg(newId));
+    reportInfo(tr("已导入角色：%1").arg(newId));
 }
 
 void Bridge::exportChatHistory()
 {
     if (m_store == nullptr) {
-        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), QStringLiteral("聊天库不可用"));
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), tr("聊天库不可用"));
         return;
     }
     const QString path = QFileDialog::getSaveFileName(nullptr, QStringLiteral("导出聊天记录"),
@@ -1237,7 +1241,7 @@ void Bridge::exportChatHistory()
         out << QStringLiteral("**%1**：").arg(speaker) << message.content << QStringLiteral("\n\n");
     }
     file.close();
-    reportInfo(QStringLiteral("聊天记录已导出：%1").arg(path));
+    reportInfo(tr("聊天记录已导出：%1").arg(path));
 }
 
 void Bridge::exportLogs()
@@ -1261,7 +1265,7 @@ void Bridge::exportLogs()
         if (QFile::copy(source, target))
             ++copied;
     }
-    reportInfo(QStringLiteral("已导出 %1 个日志文件到 %2").arg(copied).arg(dest));
+    reportInfo(tr("已导出 %1 个日志文件到 %2").arg(copied).arg(dest));
 }
 
 
@@ -1431,7 +1435,7 @@ void Bridge::cycleCharacter()
 {
     const QList<Character> list = m_characters->list();
     if (list.isEmpty()) {
-        reportInfo(QStringLiteral("还没有角色"));
+        reportInfo(tr("还没有角色"));
         return;
     }
     const QVector<QString> petCharacters = m_config->values().petCharacters;
@@ -1451,7 +1455,7 @@ void Bridge::cycleCharacter()
     m_config->setPetCharacter(m_activePetIndex, list.at(index).id);
     m_config->save();
     emit petLayoutChanged();
-    reportInfo(QStringLiteral("桌宠 %1 已切换到：%2").arg(m_activePetIndex + 1).arg(list.at(index).name));
+    reportInfo(tr("桌宠 %1 已切换到：%2").arg(m_activePetIndex + 1).arg(list.at(index).name));
 }
 
 int Bridge::mode() const
@@ -1662,7 +1666,7 @@ void Bridge::addMemory(const QString &content)
     const QString characterId = m_config->values().characterId;
     const QString trimmed = content.trimmed();
     if (characterId.isEmpty() || trimmed.isEmpty()) {
-        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色并填写记忆内容"));
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), tr("请先选择角色并填写记忆内容"));
         return;
     }
     MemoryEntry entry;
@@ -1675,7 +1679,7 @@ void Bridge::addMemory(const QString &content)
         return;
     }
     emit memoriesChanged();
-    reportInfo(QStringLiteral("已添加记忆"));
+    reportInfo(tr("已添加记忆"));
 }
 
 void Bridge::updateMemory(qint64 id, const QString &content)
@@ -1694,7 +1698,7 @@ void Bridge::updateMemory(qint64 id, const QString &content)
             return;
         }
         emit memoriesChanged();
-        reportInfo(QStringLiteral("记忆已更新"));
+        reportInfo(tr("记忆已更新"));
         return;
     }
 }
@@ -1730,6 +1734,24 @@ bool Bridge::autoMode() const
     return m_config->values().autoMode;
 }
 
+bool Bridge::intimacyDecay() const
+{
+    return m_config->values().intimacyDecay;
+}
+
+void Bridge::setIntimacyDecay(bool enabled)
+{
+    m_config->setIntimacyDecay(enabled);
+    m_config->save();
+    if (m_intimacy->loaded()) {
+        m_intimacy->setDecayEnabled(enabled);
+        if (enabled)
+            m_intimacy->applyDailyDecay();
+    }
+    emit intimacyChanged();
+    emit settingsChanged();
+}
+
 void Bridge::setAutoMode(bool enabled)
 {
     m_config->setAutoMode(enabled);
@@ -1763,7 +1785,7 @@ void Bridge::saveModelProfile(const QString &name)
 {
     const QString trimmed = name.trimmed();
     if (trimmed.isEmpty()) {
-        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("配置名称不能为空"));
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), tr("配置名称不能为空"));
         return;
     }
     QVector<ModelProfile> profiles = m_config->values().modelProfiles;
@@ -1791,7 +1813,7 @@ void Bridge::saveModelProfile(const QString &name)
     m_config->setModelProfiles(profiles, index);
     m_config->save();
     emit profilesChanged();
-    reportInfo(QStringLiteral("已保存模型配置：%1").arg(trimmed));
+    reportInfo(tr("已保存模型配置：%1").arg(trimmed));
 }
 
 void Bridge::applyModelProfile(int index)
@@ -1806,7 +1828,7 @@ void Bridge::applyModelProfile(int index)
     m_config->save();
     emit profilesChanged();
     emit settingsChanged();
-    reportInfo(QStringLiteral("已应用模型配置：%1").arg(profile.name));
+    reportInfo(tr("已应用模型配置：%1").arg(profile.name));
 }
 
 void Bridge::deleteModelProfile(int index)
@@ -1823,6 +1845,14 @@ void Bridge::deleteModelProfile(int index)
     m_config->setModelProfiles(profiles, active);
     m_config->save();
     emit profilesChanged();
+}
+
+QString Bridge::chatTitle() const
+{
+    const QString name = personaName();
+    if (m_intimacy->loaded())
+        return QStringLiteral("%1 · %2").arg(name, m_intimacy->levelName());
+    return name;
 }
 
 QString Bridge::feedbackSummary() const
@@ -1879,14 +1909,14 @@ void Bridge::retryChat()
 void Bridge::restartConversation()
 {
     m_chat->restartConversation();
-    reportInfo(QStringLiteral("已重启对话，记忆已重置"));
+    reportInfo(tr("已重启对话，记忆已重置"));
 }
 
 void Bridge::backtrackToIndex(int index)
 {
     m_chat->backtrackToIndex(index);
     emit memoriesChanged();
-    reportInfo(QStringLiteral("已回溯，之后的消息与记忆已清除"));
+    reportInfo(tr("已回溯，之后的消息与记忆已清除"));
 }
 
 void Bridge::quitApp()

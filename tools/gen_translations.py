@@ -14,7 +14,7 @@ EN = {
     "世界观名字": "World name", "世界观新名字": "New world name",
     "世界观正文（作为提示词的世界观段落）": "World body (injected into the system prompt)",
     "世界观：": "World: ", "主动对话频率": "Proactive chat frequency", "主题": "Theme", "语言": "Language",
-    "重试": "Retry", "记录": "History", "收起": "Collapse", "展开": "Expand", "模型配置": "Model profiles", "应用": "Apply",
+    "重试": "Retry", "记录": "History", "收起": "Collapse", "跨天衰减": "Daily decay", "预览": "Preview", "展开": "Expand", "模型配置": "Model profiles", "应用": "Apply",
     "保存为配置": "Save as profile", "删除配置": "Delete profile", "配置名称": "Profile name",
     "按前台应用自动切换模式（工作/休闲）": "Auto switch mode by foreground app (work/casual)", "启用": "Enabled",
     "当前角色/人设的最近聊天记录": "Recent messages for this character/persona",
@@ -66,6 +66,43 @@ EN = {
     "预设": "Preset", "默认世界": "Default world", "（": " (", "）": ")",
 }
 
+EN.update({
+    "思考中…": "Thinking…", "回复中…": "Replying…",
+    "已导入人设：%1": "Persona imported: %1", "已切换人设：%1": "Persona switched: %1",
+    "打开聊天": "Open chat", "切换角色": "Switch character", "设置…": "Settings…",
+    "隐藏桌宠": "Hide pet", "退出": "Quit",
+    "已创建角色：%1": "Character created: %1", "已重命名角色": "Character renamed",
+    "已删除角色": "Character deleted", "角色不存在：%1": "Character not found: %1",
+    "请先选择角色": "Select a character first",
+    "已更新角色形象；图片无透明通道，点击穿透会按整张图矩形生效":
+        "Avatar updated; no alpha channel, click-through uses the full rectangle",
+    "已更新角色形象": "Avatar updated", "人设已保存": "Persona saved",
+    "已创建人设：%1": "Persona created: %1", "人设已存在：%1": "Persona already exists: %1",
+    "已创建世界观：%1": "World created: %1", "世界观已重命名": "World renamed",
+    "世界观已删除": "World deleted", "世界观已保存": "World saved",
+    "已导入世界观": "World imported", "已更新角色世界观": "Character world updated",
+    "角色包已导出：%1": "Character pack exported: %1", "已导入角色：%1": "Character imported: %1",
+    "聊天库不可用": "Chat store unavailable", "聊天记录已导出：%1": "Chat history exported: %1",
+    "已导出 %1 个日志文件到 %2": "Exported %1 log files to %2", "还没有角色": "No characters yet",
+    "桌宠 %1 已切换到：%2": "Pet %1 switched to: %2",
+    "请先选择角色并填写记忆内容": "Select a character and enter memory content",
+    "已添加记忆": "Memory added", "记忆已更新": "Memory updated",
+    "配置名称不能为空": "Profile name cannot be empty",
+    "已保存模型配置：%1": "Model profile saved: %1", "已应用模型配置：%1": "Model profile applied: %1",
+    "已重启对话，记忆已重置": "Chat restarted; memories reset",
+    "已回溯，之后的消息与记忆已清除": "Rewound; later messages and memories removed",
+    "桌面桌宠（原型）": "Desktop Companion (prototype)",
+    "显示 / 隐藏桌宠": "Show / hide pet", "陌生": "Stranger", "我已经在桌面上啦～": "I am already on your desktop~", "熟悉": "Familiar",
+    "亲近": "Close", "信赖": "Trusted",
+    "已保存": "Saved", "保存": "Save", "删除": "Delete",
+})
+
+CPP_CONTEXTS = {
+    "src/bridge.cpp": ("Bridge", r'tr\("((?:[^"\\]|\\.)*)"\)'),
+    "src/intimacyservice.cpp": ("IntimacyService", r'tr\("((?:[^"\\]|\\.)*)"\)'),
+    "src/main.cpp": ("Main", r'translate\("Main",\s*"((?:[^"\\]|\\.)*)"\)'),
+}
+
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     # QML 的 qsTr 上下文是组件文件名（如 Manager.qml → Manager），必须按文件分组。
@@ -74,6 +111,11 @@ def main():
         context = os.path.splitext(os.path.basename(path))[0]
         text = open(path, encoding="utf-8").read()
         for match in re.finditer(r'qsTr\("((?:[^"\\]|\\.)*)"\)', text):
+            contexts.setdefault(context, set()).add(match.group(1).replace('\\n', '\n'))
+
+    for path, (context, pattern) in CPP_CONTEXTS.items():
+        text = open(os.path.join(root, path), encoding="utf-8").read()
+        for match in re.finditer(pattern, text):
             contexts.setdefault(context, set()).add(match.group(1).replace('\\n', '\n'))
 
     lines = ['<?xml version="1.0" encoding="utf-8"?>', '<!DOCTYPE TS>', '<TS version="2.1" language="en_US">']

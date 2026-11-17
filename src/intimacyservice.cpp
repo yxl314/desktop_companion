@@ -70,15 +70,15 @@ QString IntimacyService::levelName(Level level)
 {
     switch (level) {
     case Level::Stranger:
-        return QStringLiteral("陌生");
+        return tr("陌生");
     case Level::Familiar:
-        return QStringLiteral("熟悉");
+        return tr("熟悉");
     case Level::Close:
-        return QStringLiteral("亲近");
+        return tr("亲近");
     case Level::Trusted:
-        return QStringLiteral("信赖");
+        return tr("信赖");
     }
-    return QStringLiteral("陌生");
+    return tr("陌生");
 }
 
 QString IntimacyService::levelNameForScore(int score)
