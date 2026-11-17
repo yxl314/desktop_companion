@@ -1,7 +1,14 @@
 #include <stacklog/stacklog.hpp>
-#include "test_support.hpp"
+#include "../support/test_harness.hpp"
+#include "../support/test_support.hpp"
 
-int main()
+class TestTraceFlow // NOLINT(readability-identifier-naming): 测试策略要求类名 Test<被测单元或流程>
+{
+public:
+    static void trace_flow();
+};
+
+void TestTraceFlow::trace_flow()
 {
     const std::string dir = test_temp_dir();
     STACKLOG_TEST_CHECK(!dir.empty());
@@ -113,6 +120,6 @@ int main()
     STACKLOG_TEST_CHECK(deep_none[5] == "-");
     STACKLOG_TEST_CHECK(deep_unnamed[5] == "unnamed");
     test_cleanup(deep_dir);
-
-    return 0;
 }
+
+STACKLOG_TEST_MAIN(TestTraceFlow, STACKLOG_TEST_CASE(TestTraceFlow, trace_flow));

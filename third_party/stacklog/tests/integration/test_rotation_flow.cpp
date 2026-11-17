@@ -1,9 +1,16 @@
 #include <stacklog/stacklog.hpp>
-#include "test_support.hpp"
+#include "../support/test_harness.hpp"
+#include "../support/test_support.hpp"
 
 #include <cstdlib>
 
-int main()
+class TestRotationFlow // NOLINT(readability-identifier-naming): 测试策略要求类名 Test<被测单元或流程>
+{
+public:
+    static void rotation_flow();
+};
+
+void TestRotationFlow::rotation_flow()
 {
     const std::string dir = test_temp_dir();
     STACKLOG_TEST_CHECK(!dir.empty());
@@ -111,5 +118,6 @@ int main()
     test_cleanup(preserve_dir);
 
     test_cleanup(dir);
-    return 0;
 }
+
+STACKLOG_TEST_MAIN(TestRotationFlow, STACKLOG_TEST_CASE(TestRotationFlow, rotation_flow));

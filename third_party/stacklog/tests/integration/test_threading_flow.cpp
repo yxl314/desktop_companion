@@ -1,5 +1,6 @@
 #include <stacklog/stacklog.hpp>
-#include "test_support.hpp"
+#include "../support/test_harness.hpp"
+#include "../support/test_support.hpp"
 
 #include <thread>
 
@@ -16,7 +17,13 @@ void write_lines(int thread_index)
 
 } // namespace
 
-int main()
+class TestThreadingFlow // NOLINT(readability-identifier-naming): 测试策略要求类名 Test<被测单元或流程>
+{
+public:
+    static void threading_flow();
+};
+
+void TestThreadingFlow::threading_flow()
 {
     const std::string dir = test_temp_dir();
     STACKLOG_TEST_CHECK(!dir.empty());
@@ -51,5 +58,6 @@ int main()
     }
 
     test_cleanup(dir);
-    return 0;
 }
+
+STACKLOG_TEST_MAIN(TestThreadingFlow, STACKLOG_TEST_CASE(TestThreadingFlow, threading_flow));

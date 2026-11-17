@@ -1,11 +1,18 @@
 #include <stacklog/stacklog.hpp>
-#include "test_support.hpp"
+#include "../support/test_harness.hpp"
+#include "../support/test_support.hpp"
 
 #include <set>
 #include <thread>
 #include <vector>
 
-int main()
+class TestCrossThreadFlow // NOLINT(readability-identifier-naming): 测试策略要求类名 Test<被测单元或流程>
+{
+public:
+    static void cross_thread_flow();
+};
+
+void TestCrossThreadFlow::cross_thread_flow()
 {
     const std::string dir = test_temp_dir();
     STACKLOG_TEST_CHECK(!dir.empty());
@@ -28,7 +35,7 @@ int main()
         STACKLOG_INFO() << "main-after-capture";
 
         std::thread worker(
-            [captured]()
+            [captured]
             {
                 STACKLOG_RESTORE_TRACE(captured, "cross-worker");
                 STACKLOG_INFO() << "worker-scope";
@@ -45,7 +52,7 @@ int main()
         for (int index = 0; index < 4; ++index)
         {
             fanout.emplace_back(
-                [captured, index]()
+                [captured, index]
                 {
                     STACKLOG_RESTORE_TRACE(captured, "cross-fanout");
                     STACKLOG_INFO() << "fanout-" << index;
@@ -132,5 +139,6 @@ int main()
     STACKLOG_TEST_CHECK(nodes.size() == 7);
 
     test_cleanup(dir);
-    return 0;
 }
+
+STACKLOG_TEST_MAIN(TestCrossThreadFlow, STACKLOG_TEST_CASE(TestCrossThreadFlow, cross_thread_flow));

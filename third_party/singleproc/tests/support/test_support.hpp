@@ -1,3 +1,7 @@
+// 本文件只在 POSIX 构建中编译。整文件加平台守卫，Windows 门禁里的 clang-tidy
+// 会把它当成空翻译单元，不会因为找不到 POSIX 头文件误报。
+#ifndef _WIN32
+
 #ifndef SINGLEPROC_TEST_SUPPORT_HPP
 #define SINGLEPROC_TEST_SUPPORT_HPP
 
@@ -77,3 +81,5 @@ inline int finish(const char* name)
 #define CHECK(condition) ::test_support::check((condition), #condition, __FILE__, __LINE__)
 
 #endif // SINGLEPROC_TEST_SUPPORT_HPP
+
+#endif // !defined(_WIN32)

@@ -1,6 +1,10 @@
+// 本文件只在 POSIX 构建中编译。整文件加平台守卫，Windows 门禁里的 clang-tidy
+// 会把它当成空翻译单元，不会因为找不到 POSIX 头文件误报。
+#ifndef _WIN32
+
 #include <singleproc/singleproc.hpp>
 
-#include "test_support.hpp"
+#include "support/test_support.hpp"
 
 #include <cerrno>
 #include <cstdlib>
@@ -13,6 +17,69 @@
 
 namespace
 {
+
+void test_trailing_backslash_runtime_dir(const std::string& directory)
+{
+    // POSIX 上反斜杠是普通文件名字符。旧实现只认 '/'，runtime_dir 以 '\\' 结尾时
+    // 锁路径是 "<dir>/trail\/<name>"；新实现如果错误地把 '\\' 当分隔符，会变成
+    // "<dir>/trail\<name>"，与旧版本锁到不同文件（混合版本可双开）。
+    // 这里写死期望路径，不调用库里的命名函数，避免自我循环。
+    const std::string key = "trailing-backslash";
+    const std::string subdir = directory + "/trail\\";
+    CHECK(::mkdir(subdir.c_str(), 0700) == 0);
+
+    const std::string uid = std::to_string(static_cast<unsigned long>(::getuid()));
+    const std::string expected = subdir + "/singleproc-" + uid + "-" + key + ".lock";
+    const std::string wrong = subdir + "singleproc-" + uid + "-" + key + ".lock";
+
+    {
+        const singleproc::Guard guard(key, subdir);
+        CHECK(guard.is_primary());
+    }
+
+    struct stat expected_status = {};
+    struct stat wrong_status = {};
+    CHECK(::stat(expected.c_str(), &expected_status) == 0);
+    CHECK(::stat(wrong.c_str(), &wrong_status) != 0);
+
+    test_support::remove_file(expected);
+    test_support::remove_file(wrong);
+    CHECK(::rmdir(subdir.c_str()) == 0);
+}
+
+void test_lock_path_is_directory(const std::string& directory)
+{
+    // 锁文件位置是目录：POSIX 由 open() 给出 EISDIR，Windows 平台实现映射为同值。
+    const std::string key = "lock-path-dir";
+    const std::string path = test_support::lock_path(directory, key);
+    CHECK(::mkdir(path.c_str(), 0700) == 0);
+
+    const singleproc::Guard guard(key, directory);
+    CHECK(guard.state() == singleproc::Guard::State::Error);
+    CHECK(guard.error_code() == EISDIR);
+    CHECK(guard.error_code() == 21); // 写死数值：两个平台 errno 常量必须一致
+
+    CHECK(::rmdir(path.c_str()) == 0);
+}
+
+void test_intermediate_component_is_file(const std::string& directory)
+{
+    // 路径中更深的某一级是文件：POSIX 由内核给 ENOTDIR，Windows 需要补祖先检查。
+    const std::string file_path = directory + "/nested-as-file";
+    const int file_fd = ::open(file_path.c_str(), O_CREAT | O_WRONLY, 0600);
+    CHECK(file_fd >= 0);
+    if (file_fd >= 0)
+    {
+        (void)::close(file_fd);
+    }
+
+    const singleproc::Guard guard("nested", file_path + "/sub");
+    CHECK(guard.state() == singleproc::Guard::State::Error);
+    CHECK(guard.error_code() == ENOTDIR);
+    CHECK(guard.error_code() == 20); // 写死数值：两个平台 errno 常量必须一致
+
+    test_support::remove_file(file_path);
+}
 
 void test_primary_and_already_running(const std::string& directory)
 {
@@ -221,7 +288,15 @@ void test_default_directory(const std::string& directory)
 
 } // namespace
 
-int main()
+/// @brief 集成测试套件：Guard 在真实 POSIX 文件系统上的复合流程。
+class TestGuard
+{
+public:
+    /// @brief 执行全部流程用例，返回进程退出码。
+    static int run();
+};
+
+int TestGuard::run()
 {
     const std::string directory = test_support::make_temp_dir();
     if (directory.empty())
@@ -231,6 +306,9 @@ int main()
     }
 
     test_primary_and_already_running(directory);
+    test_trailing_backslash_runtime_dir(directory);
+    test_lock_path_is_directory(directory);
+    test_intermediate_component_is_file(directory);
     test_invalid_keys(directory);
     test_invalid_directories(directory);
     test_path_too_long();
@@ -243,5 +321,12 @@ int main()
     test_support::cleanup(directory, "primary-and-running");
     test_support::remove_directory(directory);
 
-    return test_support::finish("singleproc_guard_tests");
+    return test_support::finish("singleproc_guard_integration");
 }
+
+int main()
+{
+    return TestGuard::run();
+}
+
+#endif // !defined(_WIN32)

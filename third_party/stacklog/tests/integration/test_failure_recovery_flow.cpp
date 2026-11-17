@@ -1,13 +1,18 @@
 #include <stacklog/stacklog.hpp>
-#include "test_support.hpp"
-
-#include <fstream>
+#include "../support/test_harness.hpp"
+#include "../support/test_support.hpp"
 
 #ifndef _WIN32
 #include <unistd.h>
 #endif
 
-int main()
+class TestFailureRecoveryFlow // NOLINT(readability-identifier-naming): 测试策略要求类名 Test<被测单元或流程>
+{
+public:
+    static void failure_recovery_flow();
+};
+
+void TestFailureRecoveryFlow::failure_recovery_flow()
 {
     const std::string dir = test_temp_dir();
     STACKLOG_TEST_CHECK(!dir.empty());
@@ -44,10 +49,7 @@ int main()
 
     // 目录位置被普通文件占用时，初始化失败。
     const std::string occupied = dir + "/not-a-directory";
-    {
-        std::ofstream file(occupied.c_str());
-        file << "x";
-    }
+    STACKLOG_TEST_CHECK(test_write_file(occupied, "x"));
     cfg.dir = occupied;
     STACKLOG_TEST_CHECK(!stacklog::init(cfg));
 
@@ -55,11 +57,7 @@ int main()
     cfg.dir = dir;
     cfg.base_name = "occupied";
     const std::string log_path = dir + "/occupied.log";
-#ifdef _WIN32
-    STACKLOG_TEST_CHECK(_mkdir(log_path.c_str()) == 0);
-#else
-    STACKLOG_TEST_CHECK(::mkdir(log_path.c_str(), 0755) == 0);
-#endif
+    STACKLOG_TEST_CHECK(test_make_dir(log_path));
     STACKLOG_TEST_CHECK(!stacklog::init(cfg));
 
     // 未初始化时写日志只能降级 stderr，但不能崩溃。
@@ -79,6 +77,7 @@ int main()
     STACKLOG_TEST_CHECK(recovered[0].find("recovered-after-failure") != std::string::npos);
 
 #ifndef _WIN32
+    // Windows 没有 /dev/full，创建符号链接也需要特权，该写失败注入用例只在 POSIX 执行。
     // 写入遇到 ENOSPC 后 ready=false，但流仍然打开；路径恢复后重试必须能
     // 先 close 再重开。旧实现直接对已打开流 open，重试永远不会成功。
     stacklog::shutdown();
@@ -109,5 +108,6 @@ int main()
 #endif
 
     test_cleanup(dir);
-    return 0;
 }
+
+STACKLOG_TEST_MAIN(TestFailureRecoveryFlow, STACKLOG_TEST_CASE(TestFailureRecoveryFlow, failure_recovery_flow));

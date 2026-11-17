@@ -1,6 +1,10 @@
+// 本文件只在 POSIX 构建中编译。整文件加平台守卫，Windows 门禁里的 clang-tidy
+// 会把它当成空翻译单元，不会因为找不到 POSIX 头文件误报。
+#ifndef _WIN32
+
 #include <singleproc/singleproc.hpp>
 
-#include "test_support.hpp"
+#include "support/test_support.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -274,7 +278,15 @@ void test_handler_exception_is_not_swallowed(const std::string& directory)
 
 } // namespace
 
-int main()
+/// @brief 集成测试套件：真实 Unix domain socket 门铃与多进程通知流程。
+class TestDoorbell
+{
+public:
+    /// @brief 执行全部流程用例，返回进程退出码。
+    static int run();
+};
+
+int TestDoorbell::run()
 {
     const std::string directory = test_support::make_temp_dir();
     if (directory.empty())
@@ -293,5 +305,12 @@ int main()
     test_handler_exception_is_not_swallowed(directory);
 
     test_support::remove_directory(directory);
-    return test_support::finish("singleproc_doorbell_tests");
+    return test_support::finish("singleproc_doorbell_integration");
 }
+
+int main()
+{
+    return TestDoorbell::run();
+}
+
+#endif // !defined(_WIN32)

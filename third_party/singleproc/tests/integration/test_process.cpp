@@ -1,6 +1,10 @@
+// 本文件只在 POSIX 构建中编译。整文件加平台守卫，Windows 门禁里的 clang-tidy
+// 会把它当成空翻译单元，不会因为找不到 POSIX 头文件误报。
+#ifndef _WIN32
+
 #include <singleproc/singleproc.hpp>
 
-#include "test_support.hpp"
+#include "support/test_support.hpp"
 
 #include <cerrno>
 #include <csignal>
@@ -326,7 +330,18 @@ void test_exec_closes_lock(const std::string& directory, const std::string& prob
 
 } // namespace
 
-int main(int argc, char** argv)
+/// @brief 集成测试套件：真实多进程并发、崩溃恢复与 fork/exec 流程。
+class TestProcess
+{
+public:
+    /// @brief 执行全部流程用例，返回进程退出码。
+    ///
+    /// @param argc 命令行参数个数（argv[1] 为探针路径）。
+    /// @param argv 命令行参数。
+    static int run(int argc, char** argv);
+};
+
+int TestProcess::run(int argc, char** argv)
 {
     (void)::signal(SIGPIPE, SIG_IGN);
 
@@ -344,5 +359,12 @@ int main(int argc, char** argv)
     test_exec_closes_lock(directory, probe_path);
 
     test_support::remove_directory(directory);
-    return test_support::finish("singleproc_process_tests");
+    return test_support::finish("singleproc_process_integration");
 }
+
+int main(int argc, char** argv)
+{
+    return TestProcess::run(argc, argv);
+}
+
+#endif // !defined(_WIN32)

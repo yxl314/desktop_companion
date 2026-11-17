@@ -1,5 +1,6 @@
 #include <stacklog/stacklog.hpp>
-#include "test_support.hpp"
+#include "../support/test_harness.hpp"
+#include "../support/test_support.hpp"
 
 #include <cstddef>
 #include <set>
@@ -7,7 +8,13 @@
 #include <thread>
 #include <vector>
 
-int main()
+class TestRotationStressFlow // NOLINT(readability-identifier-naming): 测试策略要求类名 Test<被测单元或流程>
+{
+public:
+    static void rotation_stress_flow();
+};
+
+void TestRotationStressFlow::rotation_stress_flow()
 {
     const std::string dir = test_temp_dir();
     STACKLOG_TEST_CHECK(!dir.empty());
@@ -27,7 +34,7 @@ int main()
     for (int thread_index = 0; thread_index < thread_count; ++thread_index)
     {
         workers.emplace_back(
-            [thread_index, per_thread]()
+            [thread_index, per_thread]
             {
                 for (int index = 0; index < per_thread; ++index)
                 {
@@ -65,5 +72,6 @@ int main()
     STACKLOG_TEST_CHECK(total == thread_count * per_thread);
     STACKLOG_TEST_CHECK(unique_lines.size() == static_cast<std::size_t>(thread_count * per_thread));
     test_cleanup(dir);
-    return 0;
 }
+
+STACKLOG_TEST_MAIN(TestRotationStressFlow, STACKLOG_TEST_CASE(TestRotationStressFlow, rotation_stress_flow));
