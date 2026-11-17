@@ -81,6 +81,8 @@ class Bridge : public QObject
     Q_PROPERTY(QString textColor READ textColor NOTIFY settingsChanged)
     Q_PROPERTY(QString secondaryTextColor READ secondaryTextColor NOTIFY settingsChanged)
     Q_PROPERTY(int language READ language WRITE setLanguage NOTIFY settingsChanged)
+    Q_PROPERTY(double temperature READ temperature WRITE setTemperature NOTIFY settingsChanged)
+    Q_PROPERTY(int maxTokens READ maxTokens WRITE setMaxTokens NOTIFY settingsChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -151,6 +153,10 @@ public:
     QString secondaryTextColor() const;
     int language() const;
     void setLanguage(int language);
+    double temperature() const;
+    void setTemperature(double temperature);
+    int maxTokens() const;
+    void setMaxTokens(int maxTokens);
     void setManagerPage(int page);
     QStringList presets() const;
     QString presetName() const;
@@ -224,6 +230,7 @@ public:
     Q_INVOKABLE void removeMemory(qint64 id);
     Q_INVOKABLE void toggleMemoryPin(qint64 id);
     Q_INVOKABLE void restartConversation();
+    Q_INVOKABLE void retryChat();
     Q_INVOKABLE void backtrackToIndex(int index);
 
 signals:

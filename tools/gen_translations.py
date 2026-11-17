@@ -14,6 +14,8 @@ EN = {
     "世界观名字": "World name", "世界观新名字": "New world name",
     "世界观正文（作为提示词的世界观段落）": "World body (injected into the system prompt)",
     "世界观：": "World: ", "主动对话频率": "Proactive chat frequency", "主题": "Theme", "语言": "Language",
+    "重试": "Retry", "介绍一下你自己": "Introduce yourself",
+    "今天有什么好玩的": "What is fun today?", "讲个冷笑话": "Tell a pun",
     "人设名字": "Persona name", "休闲": "Casual", "休闲模式会按频率主动说话": "Casual mode chats proactively at the chosen frequency",
     "使用": "Use", "使用中": "In use", "保存": "Save", "停止": "Stop",
     "全局快捷键：Ctrl+Alt+P 呼出/隐藏桌宠 · Ctrl+Alt+C 打开聊天 · Ctrl+Alt+M 勿扰模式":

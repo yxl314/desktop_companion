@@ -61,6 +61,8 @@ void ConfigStore::load()
     else
         m_config.apiKey = root.value(QStringLiteral("apiKey")).toString();
     m_config.model = root.value(QStringLiteral("model")).toString(m_config.model);
+    m_config.temperature = root.value(QStringLiteral("temperature")).toDouble(0.8);
+    m_config.maxTokens = root.value(QStringLiteral("maxTokens")).toInt(0);
     m_config.personaId = root.value(QStringLiteral("personaId")).toString();
     m_config.characterId = root.value(QStringLiteral("characterId")).toString();
     m_config.idleMotion = root.value(QStringLiteral("idleMotion")).toBool(true);
@@ -113,6 +115,8 @@ bool ConfigStore::save(QString *error)
     else if (!m_config.apiKey.isEmpty())
         root.insert(QStringLiteral("apiKey"), m_config.apiKey);
     root.insert(QStringLiteral("model"), m_config.model);
+    root.insert(QStringLiteral("temperature"), m_config.temperature);
+    root.insert(QStringLiteral("maxTokens"), m_config.maxTokens);
     root.insert(QStringLiteral("personaId"), m_config.personaId);
     root.insert(QStringLiteral("characterId"), m_config.characterId);
     root.insert(QStringLiteral("idleMotion"), m_config.idleMotion);
@@ -216,6 +220,13 @@ void ConfigStore::setMode(int mode)
 void ConfigStore::setTheme(int theme)
 {
     m_config.theme = qBound(0, theme, 2);
+    emit changed();
+}
+
+void ConfigStore::setGeneration(double temperature, int maxTokens)
+{
+    m_config.temperature = temperature;
+    m_config.maxTokens = maxTokens;
     emit changed();
 }
 

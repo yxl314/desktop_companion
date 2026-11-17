@@ -69,8 +69,10 @@ Window {
     }
 
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 14
+        width: root.width - 28
+        height: root.height - 28
+        x: 14
+        y: 14
         spacing: 8
 
         RowLayout {
@@ -178,22 +180,48 @@ Window {
                 }
             }
 
-            Label {
+            Column {
                 anchors.centerIn: parent
+                spacing: 10
                 visible: messages.count === 0
-                text: qsTr("和小柚说点什么吧～")
-                color: bridge.secondaryTextColor
-                font.pixelSize: 14
+                Label {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: qsTr("和小柚说点什么吧～")
+                    color: bridge.secondaryTextColor
+                    font.pixelSize: 14
+                }
+                Row {
+                    spacing: 6
+                    Repeater {
+                        model: [qsTr("介绍一下你自己"), qsTr("今天有什么好玩的"), qsTr("讲个冷笑话")]
+                        delegate: Button {
+                            text: modelData
+                            flat: true
+                            onClicked: input.text = modelData
+                        }
+                    }
+                }
             }
         }
 
-        Label {
-            id: errorLabel
+        RowLayout {
             Layout.fillWidth: true
-            visible: text !== ""
-            wrapMode: Text.Wrap
-            color: "#c0392b"
-            font.pixelSize: 12
+            visible: errorLabel.text !== ""
+            Label {
+                id: errorLabel
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                color: "#c0392b"
+                font.pixelSize: 12
+            }
+            Button {
+                text: qsTr("重试")
+                visible: errorLabel.text !== ""
+                onClicked: {
+                    errorLabel.text = ""
+                    bridge.retryChat()
+                }
+            }
         }
 
         RowLayout {

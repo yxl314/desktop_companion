@@ -4,6 +4,14 @@
 <context>
     <name>Chat</name>
     <message>
+        <source>今天有什么好玩的</source>
+        <translation>What is fun today?</translation>
+    </message>
+    <message>
+        <source>介绍一下你自己</source>
+        <translation>Introduce yourself</translation>
+    </message>
+    <message>
         <source>停止</source>
         <translation>Stop</translation>
     </message>
@@ -40,6 +48,10 @@
         <translation>Chat · </translation>
     </message>
     <message>
+        <source>讲个冷笑话</source>
+        <translation>Tell a pun</translation>
+    </message>
+    <message>
         <source>设置</source>
         <translation>Settings</translation>
     </message>
@@ -55,6 +67,10 @@
         <source>重启对话会保留聊天记录，但重置当前人设的记忆与上下文，确定继续吗？</source>
         <translation>Restart chat? History is kept, but this persona's memories and context are reset.</translation>
     </message>
+    <message>
+        <source>重试</source>
+        <translation>Retry</translation>
+    </message>
 </context>
 <context>
     <name>Manager</name>
@@ -65,6 +81,14 @@
     <message>
         <source>Base URL</source>
         <translation>Base URL</translation>
+    </message>
+    <message>
+        <source>Max tokens</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>Temperature</source>
+        <translation></translation>
     </message>
     <message>
         <source>世界观名字</source>

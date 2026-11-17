@@ -33,7 +33,8 @@ LlmClient::LlmClient(QObject *parent)
 {
 }
 
-void LlmClient::configure(const QString &baseUrl, const QString &apiKey, const QString &model)
+void LlmClient::configure(const QString &baseUrl, const QString &apiKey, const QString &model,
+                          double temperature, int maxTokens)
 {
     m_baseUrl = trimBaseUrl(baseUrl);
     m_apiKey = apiKey.trimmed();
@@ -76,6 +77,7 @@ void LlmClient::start(const QString &systemPrompt, const QJsonArray &history, co
 
     const QJsonObject body{{QStringLiteral("model"), m_model},
                            {QStringLiteral("stream"), true},
+                           {QStringLiteral("temperature"), m_temperature},
                            {QStringLiteral("messages"), messages}};
 
     m_parser.reset();

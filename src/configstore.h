@@ -13,6 +13,8 @@ struct AppConfig
     QString baseUrl;
     QString apiKey;
     QString model = QStringLiteral("qwen2.5:7b");
+    double temperature = 0.8;
+    int maxTokens = 0;
     QString personaId;
     QString characterId;
     bool idleMotion = true;
@@ -57,6 +59,7 @@ public:
     void setMode(int mode);
     void setTheme(int theme);
     void setLanguage(int language);
+    void setGeneration(double temperature, int maxTokens);
     void setBall(bool visible, double x, double y);
     void setOnboardingDone(bool done);
     void setUpdateUrl(const QString &url);

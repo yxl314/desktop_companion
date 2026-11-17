@@ -18,7 +18,9 @@ class LlmClient : public QObject
 public:
     explicit LlmClient(QObject *parent = nullptr);
 
-    void configure(const QString &baseUrl, const QString &apiKey, const QString &model);
+    void configure(const QString &baseUrl, const QString &apiKey, const QString &model,
+                   double temperature = 0.8, int maxTokens = 0);
+    void setGenerationOptions(double temperature, int maxTokens);
     bool ready() const;
 
     /// 发起一次流式对话；systemPrompt 与人设对应，history 为历史消息数组。
@@ -45,6 +47,8 @@ private:
     QString m_baseUrl;
     QString m_apiKey;
     QString m_model;
+    double m_temperature = 0.8;
+    int m_maxTokens = 0;
     SseParser m_parser;
     bool m_aborted = false;
 };

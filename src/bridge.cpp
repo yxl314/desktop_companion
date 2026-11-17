@@ -425,7 +425,16 @@ void Bridge::petClicked(int index, double x, double y, double width, double heig
     STACKLOG_DEBUG() << "pet clicked at " << x << "," << y << " area=" << areaId.toStdString()
                      << " ratio=" << ratio;
 
-    const QStringList &chosen = areaLines.isEmpty() ? *lines : areaLines;
+    QStringList chosen = areaLines.isEmpty() ? *lines : areaLines;
+    if (m_intimacy->loaded()) {
+        const int score = m_intimacy->score();
+        if (score >= IntimacyService::trustedThreshold)
+            chosen.append(QStringLiteral("最喜欢你了！"));
+        else if (score >= IntimacyService::closeThreshold)
+            chosen.append(QStringLiteral("今天也一起玩吧～"));
+        m_intimacy->add(1, QStringLiteral("点击"));
+        emit intimacyChanged();
+    }
     m_bubbleText = chosen.at(QRandomGenerator::global()->bounded(chosen.size()));
     emit bubbleTextChanged();
     positionBubble(m_petX, m_petY);
@@ -1519,6 +1528,30 @@ void Bridge::restartApp()
     QTimer::singleShot(150, this, [this] { quitApp(); });
 }
 
+double Bridge::temperature() const
+{
+    return m_config->values().temperature;
+}
+
+void Bridge::setTemperature(double temperature)
+{
+    m_config->setGeneration(temperature, m_config->values().maxTokens);
+    m_config->save();
+    emit settingsChanged();
+}
+
+int Bridge::maxTokens() const
+{
+    return m_config->values().maxTokens;
+}
+
+void Bridge::setMaxTokens(int maxTokens)
+{
+    m_config->setGeneration(m_config->values().temperature, maxTokens);
+    m_config->save();
+    emit settingsChanged();
+}
+
 int Bridge::theme() const
 {
     return m_config->values().theme;
@@ -1689,6 +1722,11 @@ void Bridge::toggleMemoryPin(qint64 id)
         emit memoriesChanged();
         return;
     }
+}
+
+void Bridge::retryChat()
+{
+    m_chat->retryLast();
 }
 
 void Bridge::restartConversation()

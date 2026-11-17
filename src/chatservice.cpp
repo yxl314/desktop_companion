@@ -210,7 +210,8 @@ QString ChatService::buildPrompt(const QString &userText) const
 
 void ChatService::startLlm(const QString &userText)
 {
-    m_llm.configure(m_config->values().baseUrl, m_config->values().apiKey, m_config->values().model);
+    m_llm.configure(m_config->values().baseUrl, m_config->values().apiKey, m_config->values().model,
+                    m_config->values().temperature, m_config->values().maxTokens);
     if (!m_llm.ready())
         return;
 
@@ -241,7 +242,8 @@ void ChatService::send(const QString &text)
     appendStored(QStringLiteral("user"), trimmed);
     emit userMessage(trimmed);
 
-    m_llm.configure(m_config->values().baseUrl, m_config->values().apiKey, m_config->values().model);
+    m_llm.configure(m_config->values().baseUrl, m_config->values().apiKey, m_config->values().model,
+                    m_config->values().temperature, m_config->values().maxTokens);
     if (m_llm.ready()) {
         startLlm(trimmed);
     } else {
@@ -271,7 +273,8 @@ void ChatService::startExtraction(const QString &userText, const QString &assist
 {
     if (m_extracting || m_memory == nullptr || m_characterId.isEmpty())
         return;
-    m_llm.configure(m_config->values().baseUrl, m_config->values().apiKey, m_config->values().model);
+    m_llm.configure(m_config->values().baseUrl, m_config->values().apiKey, m_config->values().model,
+                    m_config->values().temperature, m_config->values().maxTokens);
     if (!m_llm.ready())
         return;
 
@@ -285,6 +288,22 @@ void ChatService::startExtraction(const QString &userText, const QString &assist
                                "每行一条，不要编号，最多 5 条；没有就输出空行。\n用户：%1\n助手：%2")
                                .arg(userText, assistantText.left(800));
     m_extractor.start(QString(), QJsonArray(), prompt);
+}
+
+void ChatService::retryLast()
+{
+    if (m_active || m_lastUserText.isEmpty())
+        return;
+    m_active = true;
+    m_partial.clear();
+    m_llm.configure(m_config->values().baseUrl, m_config->values().apiKey, m_config->values().model,
+                    m_config->values().temperature, m_config->values().maxTokens);
+    if (m_llm.ready())
+        startLlm(m_lastUserText);
+    else {
+        m_source = Source::Mock;
+        m_mock.send(m_lastUserText);
+    }
 }
 
 void ChatService::stop()

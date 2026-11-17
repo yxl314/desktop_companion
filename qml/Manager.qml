@@ -244,6 +244,29 @@ Window {
                     TextField { id: apiKeyField; Layout.fillWidth: true; echoMode: TextInput.Password }
                     Label { text: qsTr("模型") }
                     TextField { id: modelField; Layout.fillWidth: true; placeholderText: "qwen2.5:7b / deepseek-chat" }
+                    Label { text: qsTr("Temperature") }
+                    RowLayout {
+                        Slider {
+                            id: temperatureSlider
+                            Layout.preferredWidth: 220
+                            from: 0.0
+                            to: 2.0
+                            stepSize: 0.05
+                            value: bridge.temperature
+                            onMoved: bridge.temperature = value
+                        }
+                        Label { text: Number(bridge.temperature).toFixed(2) }
+                    }
+                    Label { text: qsTr("Max tokens") }
+                    SpinBox {
+                        id: maxTokensBox
+                        Layout.preferredWidth: 160
+                        from: 0
+                        to: 8192
+                        stepSize: 64
+                        value: bridge.maxTokens
+                        onValueModified: bridge.maxTokens = value
+                    }
                 }
                 RowLayout {
                     Button {

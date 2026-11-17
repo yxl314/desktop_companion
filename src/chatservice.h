@@ -33,6 +33,7 @@ public:
     void stop();
     void clearConversation();
     void restartConversation();
+    void retryLast();
     void backtrackToMessage(qint64 messageId);
     void backtrackToIndex(int index);
 
