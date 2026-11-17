@@ -8,6 +8,7 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFile>
+#include <QIcon>
 #include <QImage>
 #include <QPixmap>
 #include <QScreen>
@@ -80,6 +81,7 @@ int main(int argc, char *argv[])
     app.setOrganizationName(QStringLiteral("desktop_companion"));
     app.setApplicationName(QStringLiteral("desktop_companion"));
     app.setApplicationVersion(QStringLiteral(DESKTOP_COMPANION_VERSION));
+    app.setWindowIcon(QIcon(QStringLiteral(":/pet.png")));
     QApplication::setQuitOnLastWindowClosed(false);
 
     QCommandLineParser parser;
