@@ -1,0 +1,96 @@
+#include "configstore.h"
+
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSaveFile>
+#include <QStandardPaths>
+
+namespace
+{
+QString defaultConfigPath()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+           + QStringLiteral("/config.json");
+}
+} // namespace
+
+ConfigStore::ConfigStore(const QString &filePath, QObject *parent)
+    : QObject(parent)
+    , m_filePath(filePath.isEmpty() ? defaultConfigPath() : filePath)
+{
+    load();
+}
+
+void ConfigStore::load()
+{
+    QFile file(m_filePath);
+    if (!file.open(QIODevice::ReadOnly))
+        return;
+
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    if (!document.isObject())
+        return;
+
+    const QJsonObject root = document.object();
+    m_config.preset = root.value(QStringLiteral("preset")).toString(m_config.preset);
+    m_config.baseUrl = root.value(QStringLiteral("baseUrl")).toString();
+    m_config.apiKey = root.value(QStringLiteral("apiKey")).toString();
+    m_config.model = root.value(QStringLiteral("model")).toString(m_config.model);
+    m_config.personaId = root.value(QStringLiteral("personaId")).toString();
+    m_config.petX = root.value(QStringLiteral("petX")).toDouble(-1.0);
+    m_config.petY = root.value(QStringLiteral("petY")).toDouble(-1.0);
+}
+
+bool ConfigStore::save(QString *error)
+{
+    QDir().mkpath(QFileInfo(m_filePath).absolutePath());
+
+    QJsonObject root;
+    root.insert(QStringLiteral("version"), 2);
+    root.insert(QStringLiteral("preset"), m_config.preset);
+    root.insert(QStringLiteral("baseUrl"), m_config.baseUrl);
+    root.insert(QStringLiteral("apiKey"), m_config.apiKey);
+    root.insert(QStringLiteral("model"), m_config.model);
+    root.insert(QStringLiteral("personaId"), m_config.personaId);
+    root.insert(QStringLiteral("petX"), m_config.petX);
+    root.insert(QStringLiteral("petY"), m_config.petY);
+
+    QSaveFile file(m_filePath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        if (error != nullptr)
+            *error = file.errorString();
+        return false;
+    }
+    file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    if (!file.commit()) {
+        if (error != nullptr)
+            *error = file.errorString();
+        return false;
+    }
+    return true;
+}
+
+void ConfigStore::setLlm(const QString &preset, const QString &baseUrl, const QString &apiKey, const QString &model)
+{
+    m_config.preset = preset;
+    m_config.baseUrl = baseUrl;
+    m_config.apiKey = apiKey;
+    m_config.model = model;
+    emit changed();
+}
+
+void ConfigStore::setPersonaId(const QString &personaId)
+{
+    m_config.personaId = personaId;
+    emit changed();
+}
+
+void ConfigStore::setPetPosition(double x, double y)
+{
+    m_config.petX = x;
+    m_config.petY = y;
+    emit changed();
+}

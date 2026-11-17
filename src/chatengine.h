@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CHATENGINE_H
+#define CHATENGINE_H
 
 #include <QObject>
 #include <QString>
@@ -12,6 +13,9 @@ public:
     explicit ChatEngine(QObject *parent = nullptr);
 
     void send(const QString &text);
+
+    /// 中止正在进行的回复；没有进行中的回复时为空操作。
+    void cancel();
 
 signals:
     void delta(const QString &text);
@@ -29,4 +33,7 @@ private:
     int m_index = 0;
     QTimer m_thinkTimer;
     QTimer m_tickTimer;
+    bool m_active = false;
 };
+
+#endif // CHATENGINE_H

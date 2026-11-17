@@ -66,12 +66,18 @@ int main(int argc, char *argv[])
                                   QStringLiteral("运行 2.5 秒后截取全屏并退出，仅用于验证"),
                                   QStringLiteral("dir"));
     parser.addOption(shotOption);
+    QCommandLineOption demoOption(QStringLiteral("demo"),
+                                  QStringLiteral("发一条消息，等回复完成后截图并退出，仅用于验证"),
+                                  QStringLiteral("dir"));
+    parser.addOption(demoOption);
     parser.process(app);
 
     const bool smokeMode = parser.isSet(smokeOption);
     const QString smokeDir = smokeMode ? parser.value(smokeOption) : QString();
     const bool shotMode = parser.isSet(shotOption);
     const QString shotDir = shotMode ? parser.value(shotOption) : QString();
+    const bool demoMode = parser.isSet(demoOption);
+    const QString demoDir = demoMode ? parser.value(demoOption) : QString();
 
     const QString appDataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QString logDir = appDataDir + QStringLiteral("/logs");
@@ -79,6 +85,8 @@ int main(int argc, char *argv[])
         logDir = smokeDir + QStringLiteral("/logs");
     else if (shotMode)
         logDir = shotDir + QStringLiteral("/logs");
+    else if (demoMode)
+        logDir = demoDir + QStringLiteral("/logs");
 
     stacklog::config logConfig;
     logConfig.dir = logDir.toStdString();
@@ -132,6 +140,7 @@ int main(int argc, char *argv[])
     loadQml(QStringLiteral("Pet"));
     loadQml(QStringLiteral("Bubble"));
     loadQml(QStringLiteral("Chat"));
+    loadQml(QStringLiteral("Manager"));
 
     if (engine.rootObjects().isEmpty()) {
         qCritical("QML 加载失败");
@@ -154,10 +163,12 @@ int main(int argc, char *argv[])
     QMenu trayMenu;
     QAction *toggleAction = trayMenu.addAction(QStringLiteral("显示 / 隐藏桌宠"));
     QAction *chatAction = trayMenu.addAction(QStringLiteral("打开聊天"));
+    QAction *settingsAction = trayMenu.addAction(QStringLiteral("设置…"));
     trayMenu.addSeparator();
     QAction *quitAction = trayMenu.addAction(QStringLiteral("退出"));
     QObject::connect(toggleAction, &QAction::triggered, &bridge, &Bridge::togglePet);
     QObject::connect(chatAction, &QAction::triggered, &bridge, &Bridge::openChat);
+    QObject::connect(settingsAction, &QAction::triggered, &bridge, &Bridge::openManager);
     QObject::connect(quitAction, &QAction::triggered, &bridge, &Bridge::quitApp);
     tray.setContextMenu(&trayMenu);
     QObject::connect(&tray, &QSystemTrayIcon::activated, &app, [&bridge](QSystemTrayIcon::ActivationReason reason) {
@@ -166,42 +177,62 @@ int main(int argc, char *argv[])
     });
     tray.show();
 
+    const auto grabAll = [&engine](const QString &dir, bool onlyMissing) {
+        int saved = 0;
+        for (QObject *obj : engine.rootObjects()) {
+            auto *window = qobject_cast<QQuickWindow *>(obj);
+            if (!window)
+                continue;
+            const QString name = window->objectName().isEmpty()
+                                     ? QStringLiteral("window")
+                                     : window->objectName();
+            const QString path = dir + QStringLiteral("/") + name + QStringLiteral(".png");
+            if (onlyMissing && QFile::exists(path))
+                continue;
+            qInfo("grab %s visible=%d", qPrintable(name), int(window->isVisible()));
+            const QImage image = window->grabWindow();
+            if (image.isNull()) {
+                qWarning("截图失败: %s", qPrintable(path));
+                continue;
+            }
+            if (image.save(path))
+                ++saved;
+        }
+        return saved;
+    };
+
     if (smokeMode) {
-        const QString &dir = smokeDir;
         qInfo("loaded windows: %d", int(engine.rootObjects().size()));
         for (QObject *obj : engine.rootObjects())
             qInfo("window: %s", qPrintable(obj->objectName()));
         QTimer::singleShot(1200, &app, [&bridge] {
             bridge.openChat();
             bridge.petClicked(420, 420);
+            bridge.openManager();
         });
         QTimer::singleShot(1500, &app, [&bridge] { bridge.sendChat(QStringLiteral("你好")); });
-        const auto grabAll = [&engine, dir](bool onlyMissing) {
-            int saved = 0;
-            for (QObject *obj : engine.rootObjects()) {
-                auto *window = qobject_cast<QQuickWindow *>(obj);
-                if (!window)
-                    continue;
-                const QString name = window->objectName().isEmpty()
-                                         ? QStringLiteral("window")
-                                         : window->objectName();
-                const QString path = dir + QStringLiteral("/") + name + QStringLiteral(".png");
-                if (onlyMissing && QFile::exists(path))
-                    continue;
-                qInfo("grab %s visible=%d", qPrintable(name), int(window->isVisible()));
-                const QImage image = window->grabWindow();
-                if (image.isNull()) {
-                    qWarning("截图失败: %s", qPrintable(path));
-                    continue;
-                }
-                if (image.save(path))
-                    ++saved;
-            }
-            return saved;
+        QTimer::singleShot(4500, &app, [&] { grabAll(smokeDir, false); });
+        QTimer::singleShot(5500, &app, [&] { grabAll(smokeDir, true); });
+        QTimer::singleShot(6000, &app, [] { QCoreApplication::quit(); });
+    }
+
+    if (demoMode) {
+        qInfo("demo mode: dir=%s", qPrintable(demoDir));
+        QTimer::singleShot(1200, &app, [&bridge] {
+            bridge.openChat();
+            bridge.petClicked(420, 420);
+        });
+        QTimer::singleShot(1500, &app,
+                           [&bridge] { bridge.sendChat(QStringLiteral("你好，请用一句话确认你能正常工作")); });
+        auto finishDemo = [&app, &grabAll, demoDir] {
+            QTimer::singleShot(600, &app, [&app, &grabAll, demoDir] {
+                grabAll(demoDir, false);
+                QCoreApplication::quit();
+            });
         };
-        QTimer::singleShot(2600, &app, [grabAll] { grabAll(false); });
-        QTimer::singleShot(3400, &app, [grabAll] { grabAll(true); });
-        QTimer::singleShot(3800, &app, [] { QCoreApplication::quit(); });
+        QObject::connect(&bridge, &Bridge::chatDone, &app, finishDemo);
+        QObject::connect(&bridge, &Bridge::chatError, &app, finishDemo);
+        QTimer::singleShot(60000, &app, [] { QCoreApplication::quit(); });
     }
 
     if (shotMode) {

@@ -14,11 +14,23 @@ ChatEngine::ChatEngine(QObject *parent)
 
 void ChatEngine::send(const QString &text)
 {
+    m_active = true;
     m_pending = text;
     m_reply = pickReply(text);
     m_index = 0;
     emit stateChanged(QStringLiteral("thinking"));
     m_thinkTimer.start(350);
+}
+
+void ChatEngine::cancel()
+{
+    if (!m_active)
+        return;
+    m_thinkTimer.stop();
+    m_tickTimer.stop();
+    m_active = false;
+    emit stateChanged(QStringLiteral("idle"));
+    emit done();
 }
 
 void ChatEngine::beginReply()
@@ -31,6 +43,7 @@ void ChatEngine::emitNextChunk()
 {
     if (m_index >= m_reply.size()) {
         m_tickTimer.stop();
+        m_active = false;
         emit stateChanged(QStringLiteral("idle"));
         emit done();
         return;
