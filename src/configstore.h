@@ -13,6 +13,8 @@ struct AppConfig
     QString model = QStringLiteral("qwen2.5:7b");
     QString personaId;
     QString characterId;
+    bool autoExtractMemories = true;
+    int proactiveFrequency = 0; // 0 关 1 低 2 中 3 高
     double petX = -1.0;
     double petY = -1.0;
 };
@@ -30,6 +32,7 @@ public:
     void setLlm(const QString &preset, const QString &baseUrl, const QString &apiKey, const QString &model);
     void setPersonaId(const QString &personaId);
     void setCharacterId(const QString &characterId);
+    void setMemoryPrefs(bool autoExtract, int proactiveFrequency);
     void setPetPosition(double x, double y);
 
     bool save(QString *error = nullptr);

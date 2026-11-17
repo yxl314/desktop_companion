@@ -1,9 +1,9 @@
 # 桌面桌宠（desktop_companion）
 
-Windows 桌面 AI 桌宠原型。**0.4：角色库 + 多套人设 + 世界观 + 角色包 + 聊天/日志导出**。
+Windows 桌面 AI 桌宠原型。**0.5：记忆系统 + 好感度 + 重启/回溯 + 主动对话**。
 Qt 6.12 + QML + C++23（MSYS2 ucrt64，g++ 16），14 组单元测试。
 
-## 0.4 已实现
+## 0.5 已实现
 
 - 透明、无边框、置顶桌宠窗口（占位形象 `resources/pet.png`），空闲时上下漂浮
 - **角色库**：创建/重命名/删除角色，默认角色小柚；角色形象导入（PNG/JPG）
@@ -12,6 +12,11 @@ Qt 6.12 + QML + C++23（MSYS2 ucrt64，g++ 16），14 组单元测试。
 - **角色包**：zip 导入导出（人设 + 形象 + meta），自研 ZIP store 实现
 - **聊天/日志导出**：聊天记录导出 Markdown，日志目录导出到指定文件夹
 - **错误码体系**：0x0001~0x0009 统一错误对象，界面提示带错误码与原因
+- **记忆系统**：SQLite memory.db，按角色+人设分区；自动抽取（模型 + 本地句式兜底）、
+  pin、增删改、上限 200、关键词+新鲜度检索注入提示词；回溯/重启时重置关联记忆
+- **好感度**：0~100 四档（陌生/熟悉/亲近/信赖），对话 +2，事件记录，跨天衰减默认关闭
+- **重启对话 / 消息回溯**：聊天窗「重启对话」；右键气泡「回溯到此处」，二次确认
+- **主动对话**：频率关/低/中/高，空闲触发本地台词气泡，不打断输入
 - 点击桌宠：按**命中区**（头 / 身体 / 脚）说不同台词（4.2 秒自动隐藏），桌宠弹跳反馈
 - 拖拽：8px 阈值区分点击与拖拽，松手保存位置，下次启动恢复
 - 右键菜单：打开聊天 / 设置… / 隐藏桌宠 / 退出；托盘菜单同步
@@ -132,20 +137,22 @@ python scripts/mock_llm_server.py 8765
 %APPDATA%/desktop_companion/desktop_companion/chat.db            SQLite 聊天记录（WAL）
 %APPDATA%/desktop_companion/desktop_companion/characters/<id>/   角色卡、meta.json、avatars、personas
 %APPDATA%/desktop_companion/desktop_companion/worlds/<id>/       世界观 world.md
+%APPDATA%/desktop_companion/desktop_companion/memory.db           SQLite 记忆（按角色/人设分区）
+%APPDATA%/desktop_companion/desktop_companion/intimacy/<id>.json  好感度与事件
 %APPDATA%/desktop_companion/desktop_companion/personas/*.md      导入的人设
 %APPDATA%/desktop_companion/desktop_companion/logs/              日志
 %APPDATA%/desktop_companion/desktop_companion/runtime/           单实例锁与门铃
 ```
 
-## 已知限制（0.4 原型）
+## 已知限制（0.5 原型）
 
 - 形象仍为占位图；命中区用比例分区，点击穿透、贴边隐藏、悬浮球、多桌宠未做
-- 记忆/好感度模块已实现但尚未接入对话（0.5）；LLM 上下文仍限最近 20 条
-- 世界观仅作为提示词段落注入，未实现角色互知
+- 记忆检索为关键词+新鲜度（非向量）；自动抽取在模型只返回推理时用本地句式兜底
+- 好感度目前仅对话 +2，等级解锁台词、点击加成未做
+- 主动对话为本地台词，未接模型生成；仅气泡提示
 - 无全局快捷键、模式切换、多语言、自动更新
-- 角色包为 store 方式 zip（不支持读取 deflate 压缩条目的外部 zip）
 
-## 下一步（0.5）
+## 下一步（0.6）
 
-把 MemoryStore / PromptBuilder / IntimacyService 接入 ChatService：
-记忆注入与自动抽取、好感度增减与等级、消息回溯/重启对话、主动对话。
+桌宠交互完善：alpha 点击穿透、meta.json 命中区动作、多桌宠同屏、贴边隐藏、
+悬浮球、拖拽三态动效、命中区调试开关。

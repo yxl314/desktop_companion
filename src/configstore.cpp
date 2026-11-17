@@ -48,6 +48,8 @@ void ConfigStore::load()
     m_config.model = root.value(QStringLiteral("model")).toString(m_config.model);
     m_config.personaId = root.value(QStringLiteral("personaId")).toString();
     m_config.characterId = root.value(QStringLiteral("characterId")).toString();
+    m_config.autoExtractMemories = root.value(QStringLiteral("autoExtractMemories")).toBool(true);
+    m_config.proactiveFrequency = root.value(QStringLiteral("proactiveFrequency")).toInt(0);
     m_config.petX = root.value(QStringLiteral("petX")).toDouble(-1.0);
     m_config.petY = root.value(QStringLiteral("petY")).toDouble(-1.0);
 }
@@ -57,7 +59,7 @@ bool ConfigStore::save(QString *error)
     QDir().mkpath(QFileInfo(m_filePath).absolutePath());
 
     QJsonObject root;
-    root.insert(QStringLiteral("version"), 3);
+    root.insert(QStringLiteral("version"), 4);
     root.insert(QStringLiteral("preset"), m_config.preset);
     root.insert(QStringLiteral("baseUrl"), m_config.baseUrl);
     const QString protectedKey = secrets::protect(m_config.apiKey);
@@ -68,6 +70,8 @@ bool ConfigStore::save(QString *error)
     root.insert(QStringLiteral("model"), m_config.model);
     root.insert(QStringLiteral("personaId"), m_config.personaId);
     root.insert(QStringLiteral("characterId"), m_config.characterId);
+    root.insert(QStringLiteral("autoExtractMemories"), m_config.autoExtractMemories);
+    root.insert(QStringLiteral("proactiveFrequency"), m_config.proactiveFrequency);
     root.insert(QStringLiteral("petX"), m_config.petX);
     root.insert(QStringLiteral("petY"), m_config.petY);
 
@@ -104,6 +108,13 @@ void ConfigStore::setLlm(const QString &preset, const QString &baseUrl, const QS
 void ConfigStore::setPersonaId(const QString &personaId)
 {
     m_config.personaId = personaId;
+    emit changed();
+}
+
+void ConfigStore::setMemoryPrefs(bool autoExtract, int proactiveFrequency)
+{
+    m_config.autoExtractMemories = autoExtract;
+    m_config.proactiveFrequency = proactiveFrequency;
     emit changed();
 }
 

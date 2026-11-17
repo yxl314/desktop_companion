@@ -70,6 +70,14 @@ int main(int argc, char *argv[])
                                         QStringLiteral("打开控制中心时定位到指定页（0 模型 1 角色 2 人设 3 世界观 4 数据 5 关于）"),
                                         QStringLiteral("index"));
     parser.addOption(managerPageOption);
+    QCommandLineOption demoTextOption(QStringLiteral("demo-text"),
+                                     QStringLiteral("demo 模式发送的消息内容"),
+                                     QStringLiteral("text"));
+    parser.addOption(demoTextOption);
+    QCommandLineOption demoHoldOption(QStringLiteral("demo-hold"),
+                                     QStringLiteral("demo 截图后额外等待秒数（给后台任务留时间）"),
+                                     QStringLiteral("seconds"));
+    parser.addOption(demoHoldOption);
     QCommandLineOption demoOption(QStringLiteral("demo"),
                                   QStringLiteral("发一条消息，等回复完成后截图并退出，仅用于验证"),
                                   QStringLiteral("dir"));
@@ -231,12 +239,19 @@ int main(int argc, char *argv[])
             bridge.openChat();
             bridge.petClicked(420, 420, 320);
         });
-        QTimer::singleShot(1500, &app,
-                           [&bridge] { bridge.sendChat(QStringLiteral("你好，请用一句话确认你能正常工作")); });
-        auto finishDemo = [&app, &grabAll, demoDir] {
-            QTimer::singleShot(600, &app, [&app, &grabAll, demoDir] {
+        const QString demoText = parser.isSet(demoTextOption)
+                                     ? parser.value(demoTextOption)
+                                     : QStringLiteral("你好，请用一句话确认你能正常工作");
+        QTimer::singleShot(1500, &app, [&bridge, demoText] { bridge.sendChat(demoText); });
+        const int holdSeconds = parser.value(demoHoldOption).toInt();
+        auto finishDemo = [&app, &grabAll, demoDir, holdSeconds] {
+            QTimer::singleShot(600, &app, [&app, &grabAll, demoDir, holdSeconds] {
                 grabAll(demoDir, false);
-                QCoreApplication::quit();
+                if (holdSeconds > 0) {
+                    QTimer::singleShot(holdSeconds * 1000, &app, [] { QCoreApplication::quit(); });
+                } else {
+                    QCoreApplication::quit();
+                }
             });
         };
         QObject::connect(&bridge, &Bridge::chatDone, &app, finishDemo);

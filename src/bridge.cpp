@@ -24,6 +24,8 @@
 #include "characterstore.h"
 #include "chatstore.h"
 #include "errorcodes.h"
+#include "intimacyservice.h"
+#include "memorystore.h"
 #include "personafile.h"
 #include "promptbuilder.h"
 #include "worldstore.h"
@@ -62,7 +64,9 @@ Bridge::Bridge(QObject *parent)
     , m_config(new ConfigStore())
     , m_personas(new PersonaStore())
     , m_store(new ChatStore())
-    , m_chat(new ChatService(m_config, m_personas, m_store, this))
+    , m_memory(new MemoryStore())
+    , m_intimacy(new IntimacyService())
+    , m_chat(new ChatService(m_config, m_personas, m_store, m_memory, m_intimacy, this))
     , m_characters(new CharacterStore())
     , m_worlds(new WorldStore())
 {
@@ -94,6 +98,24 @@ Bridge::Bridge(QObject *parent)
     });
     connect(m_characters, &CharacterStore::changed, this, &Bridge::refreshCharacters);
     connect(m_worlds, &WorldStore::changed, this, &Bridge::refreshWorlds);
+    connect(m_memory, &MemoryStore::changed, this, &Bridge::memoriesChanged);
+    connect(m_intimacy, &IntimacyService::changed, this, &Bridge::intimacyChanged);
+    connect(m_chat, &ChatService::memoriesChanged, this, &Bridge::memoriesChanged);
+    connect(m_chat, &ChatService::intimacyChanged, this, &Bridge::intimacyChanged);
+
+    m_proactiveTimer.setSingleShot(true);
+    connect(&m_proactiveTimer, &QTimer::timeout, this, [this] {
+        if (!m_chat->busy() && m_petVisible && m_config->values().proactiveFrequency > 0) {
+            const QStringList lines = idleLines();
+            m_bubbleText = lines.at(QRandomGenerator::global()->bounded(lines.size()));
+            emit bubbleTextChanged();
+            positionBubble(m_petX, m_petY);
+            setBubbleVisible(true);
+            m_bubbleTimer.start(4200);
+        }
+        scheduleProactive();
+    });
+    scheduleProactive();
 
     ensureDefaultCharacter();
     applyCharacterContext();
@@ -348,6 +370,7 @@ void Bridge::petClicked(double x, double y, double height)
     positionBubble(x, y);
     setBubbleVisible(true);
     m_bubbleTimer.start(4200);
+    scheduleProactive();
     setPetPosition(x, y);
 }
 
@@ -383,6 +406,7 @@ void Bridge::closeChat()
 void Bridge::sendChat(const QString &text)
 {
     STACKLOG_INFO() << "chat send: " << text.toStdString();
+    scheduleProactive();
     m_chat->send(text);
 }
 
@@ -490,7 +514,7 @@ void Bridge::selectPersona(const QString &personaId)
 
     m_config->setPersonaId(personaId);
     m_config->save();
-    m_chat->switchPersona(personaId);
+    applyCharacterContext();
     emit settingsChanged();
     emit personasChanged();
     setStatusText(QStringLiteral("已切换人设：%1").arg(personaName()));
@@ -675,12 +699,46 @@ void Bridge::applyCharacterContext()
     const QString characterId = m_config->values().characterId;
     const QString personaId = m_config->values().personaId;
     if (!characterId.isEmpty() && m_characters->contains(characterId)) {
-        const QString prompt = buildCharacterPrompt(characterId, personaId);
+        PersonaData persona;
+        QString error;
+        const bool hasPersona = !personaId.isEmpty()
+                                && m_characters->persona(characterId, personaId, &persona, &error);
+        if (!hasPersona)
+            m_characters->card(characterId, &persona, &error);
+
+        QString worldBody;
+        const QString worldId = m_characters->worldId(characterId);
+        if (!worldId.isEmpty()) {
+            World world;
+            if (m_worlds->read(worldId, &world, &error))
+                worldBody = world.content;
+        }
+
+        PromptContext context;
+        context.characterId = characterId;
+        context.personaName = persona.name.isEmpty() ? characterId : persona.name;
+        context.personaBody = persona.body;
+        if (!persona.hobbies.isEmpty() || !persona.favoriteFood.isEmpty()) {
+            context.situation = QStringLiteral("爱好：%1；最爱的食物：%2")
+                                    .arg(persona.hobbies, persona.favoriteFood);
+        }
+        context.worldBody = worldBody;
+        context.constraints = PromptBuilder::defaultConstraints();
+
         const QString partition = QStringLiteral("character/%1/%2")
                                       .arg(characterId, personaId.isEmpty() ? QStringLiteral("default") : personaId);
-        m_chat->setContext(partition, prompt);
+        m_chat->setContext(partition, characterId, personaId, context);
+
+        QString intimacyError;
+        m_intimacy->load(characterId, &intimacyError);
+        emit intimacyChanged();
     } else {
-        m_chat->setContext(personaId, QString());
+        const Persona legacy = m_personas->find(personaId);
+        PromptContext context;
+        context.personaName = legacy.name;
+        context.personaBody = legacy.prompt;
+        context.constraints = PromptBuilder::defaultConstraints();
+        m_chat->setContext(personaId, QString(), personaId, context);
     }
     emit settingsChanged();
 }
@@ -1065,6 +1123,155 @@ void Bridge::exportLogs()
             ++copied;
     }
     reportInfo(QStringLiteral("已导出 %1 个日志文件到 %2").arg(copied).arg(dest));
+}
+
+
+QVariantList Bridge::memories() const
+{
+    QVariantList result;
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty() || !m_memory->ready())
+        return result;
+    for (const MemoryEntry &entry : m_memory->list(characterId, m_config->values().personaId)) {
+        QVariantMap item;
+        item.insert(QStringLiteral("id"), entry.id);
+        item.insert(QStringLiteral("content"), entry.content);
+        item.insert(QStringLiteral("pinned"), entry.pinned);
+        item.insert(QStringLiteral("tags"), entry.tags.join(QStringLiteral(", ")));
+        item.insert(QStringLiteral("createdAt"), entry.createdAt);
+        result.append(item);
+    }
+    return result;
+}
+
+int Bridge::intimacyScore() const
+{
+    return m_intimacy->loaded() ? m_intimacy->score() : 0;
+}
+
+QString Bridge::intimacyLevel() const
+{
+    return m_intimacy->loaded() ? m_intimacy->levelName() : QStringLiteral("陌生");
+}
+
+bool Bridge::autoExtractMemories() const
+{
+    return m_config->values().autoExtractMemories;
+}
+
+void Bridge::setAutoExtractMemories(bool enabled)
+{
+    m_config->setMemoryPrefs(enabled, m_config->values().proactiveFrequency);
+    m_config->save();
+    emit settingsChanged();
+}
+
+int Bridge::proactiveFrequency() const
+{
+    return m_config->values().proactiveFrequency;
+}
+
+void Bridge::setProactiveFrequency(int frequency)
+{
+    m_config->setMemoryPrefs(m_config->values().autoExtractMemories, qBound(0, frequency, 3));
+    m_config->save();
+    scheduleProactive();
+    emit settingsChanged();
+}
+
+void Bridge::scheduleProactive()
+{
+    m_proactiveTimer.stop();
+    const int frequency = m_config->values().proactiveFrequency;
+    if (frequency <= 0)
+        return;
+    int intervalMs = 10 * 60 * 1000;
+    if (frequency == 2)
+        intervalMs = 5 * 60 * 1000;
+    else if (frequency == 3)
+        intervalMs = 2 * 60 * 1000;
+    m_proactiveTimer.start(intervalMs);
+}
+
+void Bridge::addMemory(const QString &content)
+{
+    const QString characterId = m_config->values().characterId;
+    const QString trimmed = content.trimmed();
+    if (characterId.isEmpty() || trimmed.isEmpty()) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), QStringLiteral("请先选择角色并填写记忆内容"));
+        return;
+    }
+    MemoryEntry entry;
+    entry.characterId = characterId;
+    entry.personaId = m_config->values().personaId;
+    entry.content = trimmed;
+    QString error;
+    if (!m_memory->add(&entry, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::MemoryLimitReached), error);
+        return;
+    }
+    emit memoriesChanged();
+    reportInfo(QStringLiteral("已添加记忆"));
+}
+
+void Bridge::updateMemory(qint64 id, const QString &content)
+{
+    if (content.trimmed().isEmpty())
+        return;
+    const QString characterId = m_config->values().characterId;
+    for (const MemoryEntry &entry : m_memory->list(characterId, m_config->values().personaId)) {
+        if (entry.id != id)
+            continue;
+        MemoryEntry updated = entry;
+        updated.content = content.trimmed();
+        QString error;
+        if (!m_memory->update(updated, &error)) {
+            reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+            return;
+        }
+        emit memoriesChanged();
+        reportInfo(QStringLiteral("记忆已更新"));
+        return;
+    }
+}
+
+void Bridge::removeMemory(qint64 id)
+{
+    QString error;
+    if (!m_memory->remove(id, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    emit memoriesChanged();
+}
+
+void Bridge::toggleMemoryPin(qint64 id)
+{
+    const QString characterId = m_config->values().characterId;
+    for (const MemoryEntry &entry : m_memory->list(characterId, m_config->values().personaId)) {
+        if (entry.id != id)
+            continue;
+        QString error;
+        if (!m_memory->setPinned(id, !entry.pinned, &error)) {
+            reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+            return;
+        }
+        emit memoriesChanged();
+        return;
+    }
+}
+
+void Bridge::restartConversation()
+{
+    m_chat->restartConversation();
+    reportInfo(QStringLiteral("已重启对话，记忆已重置"));
+}
+
+void Bridge::backtrackToIndex(int index)
+{
+    m_chat->backtrackToIndex(index);
+    emit memoriesChanged();
+    reportInfo(QStringLiteral("已回溯，之后的消息与记忆已清除"));
 }
 
 void Bridge::quitApp()

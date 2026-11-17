@@ -265,6 +265,32 @@ bool ChatStore::appendMessage(const QString &role, const QString &content)
     return true;
 }
 
+int ChatStore::truncateAfter(qint64 messageId)
+{
+    if (!m_ready || m_conversationId < 0)
+        return -1;
+
+    sqlite3_stmt *statement = nullptr;
+    if (sqlite3_prepare_v2(m_db,
+                           "DELETE FROM messages WHERE conversation_id = ? AND id > ?",
+                           -1, &statement, nullptr) != SQLITE_OK) {
+        setError(QStringLiteral("truncate prepare"));
+        return -1;
+    }
+    sqlite3_bind_int64(statement, 1, m_conversationId);
+    sqlite3_bind_int64(statement, 2, messageId);
+    const bool ok = sqlite3_step(statement) == SQLITE_DONE;
+    int removed = -1;
+    if (ok) {
+        removed = sqlite3_changes(m_db);
+        emit changed();
+    } else {
+        setError(QStringLiteral("truncate"));
+    }
+    sqlite3_finalize(statement);
+    return removed;
+}
+
 bool ChatStore::clearCurrentMessages()
 {
     if (!m_ready || m_conversationId < 0)

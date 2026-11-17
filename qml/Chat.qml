@@ -19,6 +19,43 @@ Window {
 
     ListModel { id: messages }
 
+    Dialog {
+        id: clearConfirm
+        title: qsTr("清空对话")
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: bridge.clearConversation()
+        contentItem: Label { text: qsTr("确定清空当前对话的聊天记录吗？") }
+    }
+
+    Dialog {
+        id: restartDialog
+        title: qsTr("重启对话")
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: bridge.restartConversation()
+        contentItem: Label {
+            wrapMode: Text.Wrap
+            text: qsTr("重启对话会保留聊天记录，但重置当前人设的记忆与上下文，确定继续吗？")
+        }
+    }
+
+    Dialog {
+        id: backtrackDialog
+        property int targetIndex: -1
+        title: qsTr("回溯对话")
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: bridge.backtrackToIndex(targetIndex)
+        contentItem: Label {
+            wrapMode: Text.Wrap
+            text: qsTr("回溯到这条消息，其后的消息与关联记忆会被清除，确定继续吗？")
+        }
+    }
+
     Component.onCompleted: {
         const history = bridge.initialMessages()
         for (let i = 0; i < history.length; ++i)
@@ -52,10 +89,12 @@ Window {
             Button {
                 text: qsTr("清空对话")
                 flat: true
-                onClicked: {
-                    bridge.clearConversation()
-                    messages.clear()
-                }
+                onClicked: clearConfirm.open()
+            }
+            Button {
+                text: qsTr("重启对话")
+                flat: true
+                onClicked: restartDialog.open()
             }
             Item { Layout.fillWidth: true }
             Button {
@@ -93,26 +132,41 @@ Window {
                 spacing: 8
                 onCountChanged: positionViewAtEnd()
 
-                delegate: Row {
+                delegate: Item {
                     width: list.width
-                    layoutDirection: model.role === "user" ? Qt.RightToLeft : Qt.LeftToRight
+                    height: bubbleRow.height
 
-                    Rectangle {
-                        width: Math.min(bubbleText.implicitWidth + 20, list.width * 0.72)
-                        height: bubbleText.implicitHeight + 16
-                        radius: 10
-                        color: model.role === "user" ? "#8fd3a8" : "#ffffff"
-                        border.color: model.role === "user" ? "#6cbf8a" : "#e2ded6"
-                        border.width: 1
+                    Row {
+                        id: bubbleRow
+                        width: parent.width
+                        layoutDirection: model.role === "user" ? Qt.RightToLeft : Qt.LeftToRight
 
-                        Text {
-                            id: bubbleText
-                            width: parent.width - 20
-                            anchors.centerIn: parent
-                            text: model.text
-                            wrapMode: Text.Wrap
-                            color: "#333333"
-                            font.pixelSize: 14
+                        Rectangle {
+                            width: Math.min(bubbleText.implicitWidth + 20, list.width * 0.72)
+                            height: bubbleText.implicitHeight + 16
+                            radius: 10
+                            color: model.role === "user" ? "#8fd3a8" : "#ffffff"
+                            border.color: model.role === "user" ? "#6cbf8a" : "#e2ded6"
+                            border.width: 1
+
+                            Text {
+                                id: bubbleText
+                                width: parent.width - 20
+                                anchors.centerIn: parent
+                                text: model.text
+                                wrapMode: Text.Wrap
+                                color: "#333333"
+                                font.pixelSize: 14
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.RightButton
+                        onClicked: {
+                            backtrackDialog.targetIndex = index
+                            backtrackDialog.open()
                         }
                     }
                 }

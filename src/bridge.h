@@ -8,6 +8,8 @@
 #include <QVariantMap>
 
 class CharacterStore;
+class IntimacyService;
+class MemoryStore;
 class ChatService;
 class ChatStore;
 class ConfigStore;
@@ -50,6 +52,11 @@ class Bridge : public QObject
     Q_PROPERTY(QString currentCharacterName READ currentCharacterName NOTIFY settingsChanged)
     Q_PROPERTY(QString currentPersonaId READ currentPersonaId NOTIFY settingsChanged)
     Q_PROPERTY(int managerPage READ managerPage WRITE setManagerPage NOTIFY managerPageChanged)
+    Q_PROPERTY(QVariantList memories READ memories NOTIFY memoriesChanged)
+    Q_PROPERTY(int intimacyScore READ intimacyScore NOTIFY intimacyChanged)
+    Q_PROPERTY(QString intimacyLevel READ intimacyLevel NOTIFY intimacyChanged)
+    Q_PROPERTY(bool autoExtractMemories READ autoExtractMemories WRITE setAutoExtractMemories NOTIFY settingsChanged)
+    Q_PROPERTY(int proactiveFrequency READ proactiveFrequency WRITE setProactiveFrequency NOTIFY settingsChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -84,6 +91,13 @@ public:
     QString currentCharacterName() const;
     QString currentPersonaId() const;
     int managerPage() const { return m_managerPage; }
+    QVariantList memories() const;
+    int intimacyScore() const;
+    QString intimacyLevel() const;
+    bool autoExtractMemories() const;
+    void setAutoExtractMemories(bool enabled);
+    int proactiveFrequency() const;
+    void setProactiveFrequency(int frequency);
     void setManagerPage(int page);
     QStringList presets() const;
     QString presetName() const;
@@ -142,6 +156,12 @@ public:
     Q_INVOKABLE void importCharacterPack();
     Q_INVOKABLE void exportChatHistory();
     Q_INVOKABLE void exportLogs();
+    Q_INVOKABLE void addMemory(const QString &content);
+    Q_INVOKABLE void updateMemory(qint64 id, const QString &content);
+    Q_INVOKABLE void removeMemory(qint64 id);
+    Q_INVOKABLE void toggleMemoryPin(qint64 id);
+    Q_INVOKABLE void restartConversation();
+    Q_INVOKABLE void backtrackToIndex(int index);
 
 signals:
     void petVisibleChanged();
@@ -159,6 +179,8 @@ signals:
     void managerPageChanged();
     void charactersChanged();
     void worldsChanged();
+    void memoriesChanged();
+    void intimacyChanged();
 
     void chatMessage(const QString &role, const QString &text);
     void chatDelta(const QString &text);
@@ -179,13 +201,17 @@ private:
     QString buildCharacterPrompt(const QString &characterId, const QString &personaId) const;
     QString currentCharacterDir() const;
     void ensureDefaultCharacter();
+    void scheduleProactive();
 
     ConfigStore *m_config = nullptr;
     PersonaStore *m_personas = nullptr;
     ChatStore *m_store = nullptr;
+    MemoryStore *m_memory = nullptr;
+    IntimacyService *m_intimacy = nullptr;
     ChatService *m_chat = nullptr;
     CharacterStore *m_characters = nullptr;
     WorldStore *m_worlds = nullptr;
+    QTimer m_proactiveTimer;
     QTimer m_bubbleTimer;
     bool m_petVisible = true;
     bool m_chatVisible = false;

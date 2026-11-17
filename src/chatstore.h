@@ -10,6 +10,7 @@ struct sqlite3;
 /// 一条持久化的聊天消息。
 struct StoredMessage
 {
+    qint64 id = -1;
     QString role;
     QString content;
 };
@@ -40,6 +41,8 @@ public:
 
     bool appendMessage(const QString &role, const QString &content);
     bool clearCurrentMessages();
+    /// 删除当前会话中 id 大于 messageId 的消息（消息回溯）；返回删除条数，失败 -1。
+    int truncateAfter(qint64 messageId);
 
 signals:
     void changed();

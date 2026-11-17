@@ -165,7 +165,7 @@ Window {
             ComboBox {
                 id: pageBox
                 Layout.preferredWidth: 200
-                model: ["模型", "角色", "人设", "世界观", "数据", "关于"]
+                model: ["模型", "角色", "人设", "记忆", "世界观", "数据", "关于"]
                 currentIndex: bridge.managerPage
                 onActivated: bridge.managerPage = currentIndex
             }
@@ -241,6 +241,15 @@ Window {
                     wrapMode: Text.Wrap
                     color: "#7a6a50"
                     font.pixelSize: 12
+                }
+                RowLayout {
+                    Label { text: qsTr("主动对话频率") }
+                    ComboBox {
+                        Layout.preferredWidth: 160
+                        model: ["关", "低", "中", "高"]
+                        currentIndex: bridge.proactiveFrequency
+                        onActivated: bridge.proactiveFrequency = currentIndex
+                    }
                 }
                 Label {
                     Layout.fillWidth: true
@@ -319,10 +328,18 @@ Window {
             // ================= 人设 =================
             ColumnLayout {
                 spacing: 8
-                Label {
+                RowLayout {
                     Layout.fillWidth: true
-                    text: qsTr("当前人设：") + bridge.personaName
-                    color: "#4a3b2e"
+                    Label {
+                        text: qsTr("当前人设：") + bridge.personaName
+                        color: "#4a3b2e"
+                    }
+                    Item { Layout.fillWidth: true }
+                    Label {
+                        text: qsTr("好感度：") + bridge.intimacyScore + qsTr("（") + bridge.intimacyLevel + qsTr("）")
+                        color: "#8a7a60"
+                        font.pixelSize: 12
+                    }
                 }
                 ListView {
                     Layout.fillWidth: true
@@ -368,6 +385,70 @@ Window {
                                                 (text) => bridge.createPersona(text))
                     }
                     Button { text: qsTr("导入 .md"); onClicked: bridge.importPersonaFile() }
+                    Item { Layout.fillWidth: true }
+                }
+            }
+
+            // ================= 记忆 =================
+            ColumnLayout {
+                spacing: 8
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("记忆（当前角色 / 人设）")
+                    color: "#4a3b2e"
+                }
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    model: bridge.memories
+                    spacing: 6
+                    delegate: Rectangle {
+                        width: ListView.view.width
+                        height: 48
+                        radius: 8
+                        color: modelData.pinned ? "#fff7e0" : "#ffffff"
+                        border.color: modelData.pinned ? "#e6c86e" : "#e2ded6"
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            spacing: 6
+                            Label {
+                                Layout.fillWidth: true
+                                text: (modelData.pinned ? "📌 " : "") + modelData.content
+                                color: "#4a3b2e"
+                                elide: Text.ElideRight
+                            }
+                            Button {
+                                text: modelData.pinned ? qsTr("取消置顶") : qsTr("置顶")
+                                font.pixelSize: 11
+                                onClicked: bridge.toggleMemoryPin(modelData.id)
+                            }
+                            Button {
+                                text: qsTr("编辑")
+                                font.pixelSize: 11
+                                onClicked: root.askText(qsTr("记忆内容"), modelData.content,
+                                                        (text) => bridge.updateMemory(modelData.id, text))
+                            }
+                            Button {
+                                text: qsTr("删除")
+                                font.pixelSize: 11
+                                onClicked: bridge.removeMemory(modelData.id)
+                            }
+                        }
+                    }
+                }
+                RowLayout {
+                    Button {
+                        text: qsTr("添加记忆")
+                        onClicked: root.askText(qsTr("记忆内容"), "",
+                                                (text) => bridge.addMemory(text))
+                    }
+                    CheckBox {
+                        text: qsTr("自动抽取记忆")
+                        checked: bridge.autoExtractMemories
+                        onToggled: bridge.autoExtractMemories = checked
+                    }
                     Item { Layout.fillWidth: true }
                 }
             }
