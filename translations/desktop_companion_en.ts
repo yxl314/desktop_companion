@@ -159,6 +159,10 @@
         <translation>Unpin</translation>
     </message>
     <message>
+        <source>启用</source>
+        <translation>Enabled</translation>
+    </message>
+    <message>
         <source>好感度：</source>
         <translation>Affection: </translation>
     </message>
@@ -207,12 +211,20 @@
         <translation>Current persona: </translation>
     </message>
     <message>
+        <source>当前角色/人设的最近聊天记录</source>
+        <translation>Recent messages for this character/persona</translation>
+    </message>
+    <message>
         <source>当前角色：</source>
         <translation>Current character: </translation>
     </message>
     <message>
         <source>待机浮动</source>
         <translation>Idle float</translation>
+    </message>
+    <message>
+        <source>我：</source>
+        <translation>Me: </translation>
     </message>
     <message>
         <source>打开数据目录</source>
@@ -259,6 +271,10 @@
         <translation>Show hit areas (debug)</translation>
     </message>
     <message>
+        <source>暂无记录</source>
+        <translation>No messages yet</translation>
+    </message>
+    <message>
         <source>最爱的食物</source>
         <translation>Favorite food</translation>
     </message>
@@ -269,6 +285,10 @@
     <message>
         <source>桌宠数量</source>
         <translation>Pet count</translation>
+    </message>
+    <message>
+        <source>桌宠：</source>
+        <translation>Pet: </translation>
     </message>
     <message>
         <source>桌面桌宠 %1（原型）</source>
@@ -375,6 +395,10 @@
         <translation>Memories (character / persona)</translation>
     </message>
     <message>
+        <source>许可：Qt 6（LGPLv3）· SQLite（Public Domain）· stacklog / singleproc / cxx 工具（MIT）</source>
+        <translation>Licenses: Qt 6 (LGPLv3) · SQLite (Public Domain) · stacklog / singleproc / cxx tools (MIT)</translation>
+    </message>
+    <message>
         <source>设置 · 桌面桌宠 </source>
         <translation>Settings · Desktop Companion </translation>
     </message>
@@ -385,6 +409,10 @@
     <message>
         <source>贴边隐藏（顶部不隐藏）</source>
         <translation>Hide at screen edge (not top)</translation>
+    </message>
+    <message>
+        <source>赞/踩：</source>
+        <translation>Likes/dislikes: </translation>
     </message>
     <message>
         <source>跟随系统</source>

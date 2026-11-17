@@ -13,6 +13,7 @@ struct StoredMessage
     qint64 id = -1;
     QString role;
     QString content;
+    int feedback = 0; // 0 未评价 1 点赞 -1 点踩
 };
 
 /// SQLite 聊天记录：单连接，自动建表，按会话保存消息。
@@ -39,10 +40,15 @@ public:
     /// 最近 limit 条消息（按时间正序返回）。
     QVector<StoredMessage> recentMessages(int limit) const;
 
-    bool appendMessage(const QString &role, const QString &content);
+    /// 追加消息；outId 非空时返回新消息 id。
+    bool appendMessage(const QString &role, const QString &content, qint64 *outId = nullptr);
     bool clearCurrentMessages();
     /// 删除当前会话中 id 大于 messageId 的消息（消息回溯）；返回删除条数，失败 -1。
     int truncateAfter(qint64 messageId);
+    /// 本地点赞/点踩（1 / -1 / 0 取消），仅存本地。
+    bool setFeedback(qint64 messageId, int value);
+    /// 当前会话统计：like/dislike 条数。
+    void feedbackStats(int *likes, int *dislikes) const;
 
 signals:
     void changed();

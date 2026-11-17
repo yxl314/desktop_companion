@@ -170,6 +170,11 @@ Window {
             }
         }
 
+        onPressAndHold: (mouse) => {
+            if (mouse.button === Qt.LeftButton)
+                bridge.showPetMenu(root.petIndex)
+        }
+
         onDoubleClicked: (mouse) => {
             if (mouse.button === Qt.LeftButton)
                 bridge.openChat()

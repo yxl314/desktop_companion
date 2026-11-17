@@ -65,7 +65,9 @@ ChatService::ChatService(ConfigStore *config, PersonaStore *personas, ChatStore 
         if (!m_active || m_source != Source::Mock)
             return;
         appendHistory(QStringLiteral("assistant"), m_partial);
-        appendStored(QStringLiteral("assistant"), m_partial);
+        const qint64 id = appendStored(QStringLiteral("assistant"), m_partial);
+        if (id >= 0)
+            emit assistantStored(id);
         finishExchange();
     });
 
@@ -81,7 +83,9 @@ ChatService::ChatService(ConfigStore *config, PersonaStore *personas, ChatStore 
         if (!m_active || m_source != Source::Llm)
             return;
         appendHistory(QStringLiteral("assistant"), m_partial);
-        appendStored(QStringLiteral("assistant"), m_partial);
+        const qint64 id = appendStored(QStringLiteral("assistant"), m_partial);
+        if (id >= 0)
+            emit assistantStored(id);
         finishExchange();
     });
     connect(&m_llm, &LlmClient::failed, this, [this](const QString &message) {
@@ -157,19 +161,34 @@ void ChatService::appendHistory(const QString &role, const QString &content)
         m_history.removeFirst();
 }
 
-void ChatService::appendStored(const QString &role, const QString &content)
+qint64 ChatService::appendStored(const QString &role, const QString &content)
 {
-    if (m_store != nullptr && m_store->appendMessage(role, content))
-        return;
+    qint64 id = -1;
+    if (m_store != nullptr)
+        m_store->appendMessage(role, content, &id);
+    return id;
 }
 
 QVariantList ChatService::initialMessages() const
 {
     QVariantList result;
+    if (m_store != nullptr && m_store->ready()) {
+        for (const StoredMessage &message : m_store->recentMessages(maxHistoryMessages)) {
+            QVariantMap item;
+            item.insert(QStringLiteral("id"), message.id);
+            item.insert(QStringLiteral("role"), message.role);
+            item.insert(QStringLiteral("text"), message.content);
+            item.insert(QStringLiteral("feedback"), message.feedback);
+            result.append(item);
+        }
+        return result;
+    }
     for (const auto &entry : m_history) {
         QVariantMap item;
+        item.insert(QStringLiteral("id"), -1);
         item.insert(QStringLiteral("role"), entry.first);
         item.insert(QStringLiteral("text"), entry.second);
+        item.insert(QStringLiteral("feedback"), 0);
         result.append(item);
     }
     return result;
@@ -314,7 +333,9 @@ void ChatService::stop()
     if (m_source == Source::Llm) {
         m_llm.abort();
         appendHistory(QStringLiteral("assistant"), m_partial);
-        appendStored(QStringLiteral("assistant"), m_partial);
+        const qint64 id = appendStored(QStringLiteral("assistant"), m_partial);
+        if (id >= 0)
+            emit assistantStored(id);
         finishExchange();
     } else if (m_source == Source::Mock) {
         m_mock.cancel();

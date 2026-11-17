@@ -83,6 +83,7 @@ class Bridge : public QObject
     Q_PROPERTY(int language READ language WRITE setLanguage NOTIFY settingsChanged)
     Q_PROPERTY(double temperature READ temperature WRITE setTemperature NOTIFY settingsChanged)
     Q_PROPERTY(int maxTokens READ maxTokens WRITE setMaxTokens NOTIFY settingsChanged)
+    Q_PROPERTY(QString feedbackSummary READ feedbackSummary NOTIFY feedbackChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -143,6 +144,7 @@ public:
     bool onboardingDone() const;
     void setOnboardingDone(bool done);
     QString updateResult() const { return m_updateResult; }
+    QString feedbackSummary() const;
     int theme() const;
     void setTheme(int theme);
     bool darkTheme() const;
@@ -231,6 +233,9 @@ public:
     Q_INVOKABLE void toggleMemoryPin(qint64 id);
     Q_INVOKABLE void restartConversation();
     Q_INVOKABLE void retryChat();
+    Q_INVOKABLE void setMessageFeedback(qint64 messageId, int value);
+    Q_INVOKABLE QVariantList records() const;
+    Q_INVOKABLE void setCharacterEnabled(const QString &id, bool enabled);
     Q_INVOKABLE void backtrackToIndex(int index);
 
 signals:
@@ -244,6 +249,7 @@ signals:
     void petLayoutChanged();
     void ballPosChanged();
     void updateResultChanged();
+    void feedbackChanged();
     void statusTextChanged();
     void settingsChanged();
     void personasChanged();

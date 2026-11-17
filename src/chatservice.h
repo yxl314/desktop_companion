@@ -58,6 +58,7 @@ signals:
     void conversationCleared();
     void memoriesChanged();
     void intimacyChanged();
+    void assistantStored(qint64 messageId);
     void testFinished(bool ok, const QString &message);
 
 private:
@@ -69,7 +70,7 @@ private:
     };
 
     void appendHistory(const QString &role, const QString &content);
-    void appendStored(const QString &role, const QString &content);
+    qint64 appendStored(const QString &role, const QString &content);
     void startLlm(const QString &userText);
     void finishExchange();
     QString buildPrompt(const QString &userText) const;

@@ -65,7 +65,8 @@ Window {
     Component.onCompleted: {
         const history = bridge.initialMessages()
         for (let i = 0; i < history.length; ++i)
-            messages.append({ "role": history[i].role, "text": history[i].text })
+            messages.append({ "role": history[i].role, "text": history[i].text,
+                              "id": history[i].id, "feedback": history[i].feedback })
     }
 
     ColumnLayout {
@@ -142,7 +143,12 @@ Window {
 
                 delegate: Item {
                     width: list.width
-                    height: bubbleRow.height
+                    height: bubbleColumn.height
+
+                    Column {
+                        id: bubbleColumn
+                        width: parent.width
+                        spacing: 2
 
                     Row {
                         id: bubbleRow
@@ -167,6 +173,32 @@ Window {
                                 font.pixelSize: 14
                             }
                         }
+                    }
+
+                    Row {
+                        visible: model.role !== "user"
+                        spacing: 2
+                        Button {
+                            text: "👍"
+                            flat: true
+                            font.pixelSize: 11
+                            opacity: model.feedback > 0 ? 1.0 : 0.5
+                            onClicked: {
+                                messages.setProperty(index, "feedback", 1)
+                                bridge.setMessageFeedback(messages.get(index).id, 1)
+                            }
+                        }
+                        Button {
+                            text: "👎"
+                            flat: true
+                            font.pixelSize: 11
+                            opacity: model.feedback < 0 ? 1.0 : 0.5
+                            onClicked: {
+                                messages.setProperty(index, "feedback", -1)
+                                bridge.setMessageFeedback(messages.get(index).id, -1)
+                            }
+                        }
+                    }
                     }
 
                     MouseArea {
@@ -259,11 +291,15 @@ Window {
     Connections {
         target: bridge
         function onChatMessage(role, text) {
-            messages.append({ "role": role, "text": text })
+            messages.append({ "role": role, "text": text, "id": -1, "feedback": 0 })
+        }
+        function onAssistantStored(messageId) {
+            if (messages.count > 0 && messages.get(messages.count - 1).role === "assistant")
+                messages.setProperty(messages.count - 1, "id", messageId)
         }
         function onChatDelta(text) {
             if (messages.count === 0 || messages.get(messages.count - 1).role !== "assistant")
-                messages.append({ "role": "assistant", "text": "" })
+                messages.append({ "role": "assistant", "text": "", "id": -1, "feedback": 0 })
             const index = messages.count - 1
             messages.setProperty(index, "text", messages.get(index).text + text)
         }
@@ -279,7 +315,8 @@ Window {
             errorLabel.text = ""
             const history = bridge.initialMessages()
             for (let i = 0; i < history.length; ++i)
-                messages.append({ "role": history[i].role, "text": history[i].text })
+                messages.append({ "role": history[i].role, "text": history[i].text,
+                              "id": history[i].id, "feedback": history[i].feedback })
         }
         function onChatStateChanged(state) {
             if (state === "thinking" || state === "streaming")

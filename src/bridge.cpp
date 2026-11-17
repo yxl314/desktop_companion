@@ -1724,6 +1724,52 @@ void Bridge::toggleMemoryPin(qint64 id)
     }
 }
 
+QString Bridge::feedbackSummary() const
+{
+    int likes = 0;
+    int dislikes = 0;
+    m_store->feedbackStats(&likes, &dislikes);
+    return QStringLiteral("%1 / %2").arg(likes).arg(dislikes);
+}
+
+void Bridge::setMessageFeedback(qint64 messageId, int value)
+{
+    if (m_store->setFeedback(messageId, value))
+        emit feedbackChanged();
+}
+
+QVariantList Bridge::records() const
+{
+    QVariantList result;
+    if (m_store == nullptr || !m_store->ready())
+        return result;
+    for (const StoredMessage &message : m_store->recentMessages(300)) {
+        QVariantMap item;
+        item.insert(QStringLiteral("id"), message.id);
+        item.insert(QStringLiteral("role"), message.role);
+        item.insert(QStringLiteral("text"), message.content);
+        item.insert(QStringLiteral("feedback"), message.feedback);
+        result.append(item);
+    }
+    return result;
+}
+
+void Bridge::setCharacterEnabled(const QString &id, bool enabled)
+{
+    CharacterMeta meta;
+    QString error;
+    if (!m_characters->meta(id, &meta, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::InvalidState), error);
+        return;
+    }
+    meta.enabled = enabled;
+    if (!m_characters->saveMeta(id, meta, &error)) {
+        reportError(static_cast<quint32>(ErrorCode::FileWriteFailed), error);
+        return;
+    }
+    refreshCharacters();
+}
+
 void Bridge::retryChat()
 {
     m_chat->retryLast();

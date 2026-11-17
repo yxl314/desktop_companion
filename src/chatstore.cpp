@@ -94,6 +94,10 @@ bool ChatStore::exec(const QString &sql)
 bool ChatStore::createSchema()
 {
     const QStringList statements = {
+        QStringLiteral("CREATE TABLE IF NOT EXISTS message_feedback ("
+                       "message_id INTEGER PRIMARY KEY,"
+                       "value INTEGER NOT NULL,"
+                       "created_at TEXT NOT NULL)"),
         QStringLiteral("CREATE TABLE IF NOT EXISTS conversations ("
                        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                        "persona_id TEXT NOT NULL DEFAULT '',"
@@ -126,11 +130,11 @@ bool ChatStore::createSchema()
     if (sqlite3_step(statement) == SQLITE_ROW)
         version = sqlite3_column_int(statement, 0);
     sqlite3_finalize(statement);
-    if (version > 1) {
+    if (version > 2) {
         m_lastError = QStringLiteral("chat schema 版本过新：%1").arg(version);
         return false;
     }
-    return exec(QStringLiteral("PRAGMA user_version = 1"));
+    return exec(QStringLiteral("PRAGMA user_version = 2"));
 }
 
 bool ChatStore::readMeta(const QString &key, QString *value) const
@@ -256,7 +260,7 @@ QVector<StoredMessage> ChatStore::recentMessages(int limit) const
     return messages;
 }
 
-bool ChatStore::appendMessage(const QString &role, const QString &content)
+bool ChatStore::appendMessage(const QString &role, const QString &content, qint64 *outId)
 {
     if (!m_ready || m_conversationId < 0 || content.isEmpty())
         return false;
@@ -290,7 +294,60 @@ bool ChatStore::appendMessage(const QString &role, const QString &content)
         sqlite3_step(touch);
         sqlite3_finalize(touch);
     }
+    if (outId != nullptr)
+        *outId = sqlite3_last_insert_rowid(m_db);
+    emit changed();
     return true;
+}
+
+bool ChatStore::setFeedback(qint64 messageId, int value)
+{
+    if (!m_ready || messageId < 0)
+        return false;
+    sqlite3_stmt *statement = nullptr;
+    if (sqlite3_prepare_v2(m_db,
+                           "INSERT INTO message_feedback(message_id, value, created_at)"
+                           " VALUES(?, ?, ?)"
+                           " ON CONFLICT(message_id) DO UPDATE SET value = excluded.value",
+                           -1, &statement, nullptr) != SQLITE_OK) {
+        setError(QStringLiteral("feedback prepare"));
+        return false;
+    }
+    const QByteArray now = QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toUtf8();
+    sqlite3_bind_int64(statement, 1, messageId);
+    sqlite3_bind_int(statement, 2, value);
+    sqlite3_bind_text(statement, 3, now.constData(), -1, SQLITE_TRANSIENT);
+    const bool ok = sqlite3_step(statement) == SQLITE_DONE;
+    if (!ok)
+        setError(QStringLiteral("feedback"));
+    sqlite3_finalize(statement);
+    return ok;
+}
+
+void ChatStore::feedbackStats(int *likes, int *dislikes) const
+{
+    if (likes != nullptr)
+        *likes = 0;
+    if (dislikes != nullptr)
+        *dislikes = 0;
+    if (!m_ready || m_conversationId < 0)
+        return;
+    sqlite3_stmt *statement = nullptr;
+    if (sqlite3_prepare_v2(m_db,
+                           "SELECT IFNULL(SUM(CASE WHEN f.value > 0 THEN 1 ELSE 0 END), 0),"
+                           " IFNULL(SUM(CASE WHEN f.value < 0 THEN 1 ELSE 0 END), 0)"
+                           " FROM messages m JOIN message_feedback f ON f.message_id = m.id"
+                           " WHERE m.conversation_id = ?",
+                           -1, &statement, nullptr) != SQLITE_OK)
+        return;
+    sqlite3_bind_int64(statement, 1, m_conversationId);
+    if (sqlite3_step(statement) == SQLITE_ROW) {
+        if (likes != nullptr)
+            *likes = sqlite3_column_int(statement, 0);
+        if (dislikes != nullptr)
+            *dislikes = sqlite3_column_int(statement, 1);
+    }
+    sqlite3_finalize(statement);
 }
 
 int ChatStore::truncateAfter(qint64 messageId)

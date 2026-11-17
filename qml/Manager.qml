@@ -191,7 +191,7 @@ Window {
             ComboBox {
                 id: pageBox
                 Layout.preferredWidth: 200
-                model: ["模型", "角色", "人设", "记忆", "世界观", "数据", "系统", "关于"]
+                model: ["模型", "角色", "人设", "记忆", "世界观", "记录", "数据", "系统", "关于"]
                 currentIndex: bridge.managerPage
                 onActivated: bridge.managerPage = currentIndex
             }
@@ -345,6 +345,11 @@ Window {
                                 }
                             }
                             Label { text: qsTr("使用中"); visible: modelData.current; color: "#4f9e6d"; font.pixelSize: 12 }
+                            CheckBox {
+                                text: qsTr("启用")
+                                checked: modelData.enabled
+                                onToggled: bridge.setCharacterEnabled(modelData.id, checked)
+                            }
                             Button {
                                 text: qsTr("使用"); enabled: !modelData.current
                                 onClicked: bridge.selectCharacter(modelData.id)
@@ -557,6 +562,48 @@ Window {
                 }
             }
 
+            // ================= 记录 =================
+            ColumnLayout {
+                spacing: 8
+                RowLayout {
+                    Layout.fillWidth: true
+                    Label { text: qsTr("当前角色/人设的最近聊天记录") }
+                    Item { Layout.fillWidth: true }
+                    Label { text: qsTr("赞/踩：") + bridge.feedbackSummary; color: bridge.secondaryTextColor; font.pixelSize: 12 }
+                    Button { text: qsTr("导出聊天记录"); onClicked: bridge.exportChatHistory() }
+                }
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    model: bridge.records()
+                    spacing: 4
+                    delegate: Rectangle {
+                        width: ListView.view.width
+                        height: Math.max(28, textItem.implicitHeight + 10)
+                        radius: 6
+                        color: modelData.role === "user" ? "#2f6b4a" : bridge.cardColor
+                        border.color: bridge.borderColor
+                        Text {
+                            id: textItem
+                            anchors.fill: parent
+                            anchors.margins: 5
+                            text: (modelData.role === "user" ? qsTr("我：") : qsTr("桌宠：")) + modelData.text
+                            wrapMode: Text.Wrap
+                            color: bridge.textColor
+                            font.pixelSize: 12
+                        }
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: bridge.records().length === 0
+                    text: qsTr("暂无记录")
+                    color: bridge.secondaryTextColor
+                    font.pixelSize: 12
+                }
+            }
+
             // ================= 数据 =================
             ColumnLayout {
                 spacing: 10
@@ -712,6 +759,13 @@ Window {
                     text: qsTr("显示命中区（调试）")
                     checked: bridge.debugHitAreas
                     onToggled: bridge.debugHitAreas = checked
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    color: bridge.secondaryTextColor
+                    font.pixelSize: 11
+                    text: qsTr("许可：Qt 6（LGPLv3）· SQLite（Public Domain）· stacklog / singleproc / cxx 工具（MIT）")
                 }
                 Item { Layout.fillHeight: true }
             }
