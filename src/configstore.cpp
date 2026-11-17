@@ -48,6 +48,10 @@ void ConfigStore::load()
     m_config.model = root.value(QStringLiteral("model")).toString(m_config.model);
     m_config.personaId = root.value(QStringLiteral("personaId")).toString();
     m_config.characterId = root.value(QStringLiteral("characterId")).toString();
+    m_config.idleMotion = root.value(QStringLiteral("idleMotion")).toBool(true);
+    m_config.idleAmplitude = root.value(QStringLiteral("idleAmplitude")).toDouble(1.0);
+    m_config.clickThrough = root.value(QStringLiteral("clickThrough")).toBool(true);
+    m_config.debugHitAreas = root.value(QStringLiteral("debugHitAreas")).toBool(false);
     m_config.autoExtractMemories = root.value(QStringLiteral("autoExtractMemories")).toBool(true);
     m_config.proactiveFrequency = root.value(QStringLiteral("proactiveFrequency")).toInt(0);
     m_config.petX = root.value(QStringLiteral("petX")).toDouble(-1.0);
@@ -59,7 +63,7 @@ bool ConfigStore::save(QString *error)
     QDir().mkpath(QFileInfo(m_filePath).absolutePath());
 
     QJsonObject root;
-    root.insert(QStringLiteral("version"), 4);
+    root.insert(QStringLiteral("version"), 5);
     root.insert(QStringLiteral("preset"), m_config.preset);
     root.insert(QStringLiteral("baseUrl"), m_config.baseUrl);
     const QString protectedKey = secrets::protect(m_config.apiKey);
@@ -70,6 +74,10 @@ bool ConfigStore::save(QString *error)
     root.insert(QStringLiteral("model"), m_config.model);
     root.insert(QStringLiteral("personaId"), m_config.personaId);
     root.insert(QStringLiteral("characterId"), m_config.characterId);
+    root.insert(QStringLiteral("idleMotion"), m_config.idleMotion);
+    root.insert(QStringLiteral("idleAmplitude"), m_config.idleAmplitude);
+    root.insert(QStringLiteral("clickThrough"), m_config.clickThrough);
+    root.insert(QStringLiteral("debugHitAreas"), m_config.debugHitAreas);
     root.insert(QStringLiteral("autoExtractMemories"), m_config.autoExtractMemories);
     root.insert(QStringLiteral("proactiveFrequency"), m_config.proactiveFrequency);
     root.insert(QStringLiteral("petX"), m_config.petX);
@@ -115,6 +123,15 @@ void ConfigStore::setMemoryPrefs(bool autoExtract, int proactiveFrequency)
 {
     m_config.autoExtractMemories = autoExtract;
     m_config.proactiveFrequency = proactiveFrequency;
+    emit changed();
+}
+
+void ConfigStore::setPetBehavior(bool idleMotion, double idleAmplitude, bool clickThrough, bool debugHitAreas)
+{
+    m_config.idleMotion = idleMotion;
+    m_config.idleAmplitude = idleAmplitude;
+    m_config.clickThrough = clickThrough;
+    m_config.debugHitAreas = debugHitAreas;
     emit changed();
 }
 

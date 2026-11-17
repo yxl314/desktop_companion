@@ -21,6 +21,7 @@
 #include <stacklog/stacklog.hpp>
 
 #include "bridge.h"
+#include "petwindowhelper.h"
 
 namespace
 {
@@ -165,6 +166,27 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    // 透明区域点击穿透：按当前形象 alpha 生成窗口区域（Windows SetWindowRgn）。
+    const auto applyPetMasks = [&engine, &bridge] {
+        for (QObject *obj : engine.rootObjects()) {
+            auto *window = qobject_cast<QQuickWindow *>(obj);
+            if (!window || window->objectName() != QStringLiteral("petWindow"))
+                continue;
+            if (!bridge.clickThrough() || bridge.debugHitAreas()) {
+                petwindow::clearMask(window);
+                continue;
+            }
+            const QImage image(bridge.currentAvatarPath());
+            if (image.isNull())
+                continue;
+            if (!petwindow::applyAlphaMask(window, image))
+                STACKLOG_WARN() << "apply alpha mask failed";
+        }
+    };
+    applyPetMasks();
+    QObject::connect(&bridge, &Bridge::settingsChanged, &app, applyPetMasks);
+    QObject::connect(&bridge, &Bridge::charactersChanged, &app, applyPetMasks);
+
     // 二次启动：门铃触发的提示，由主实例气泡展示。
     guard.set_doorbell_handler([&bridge] {
         STACKLOG_INFO() << "doorbell received: second launch";
@@ -224,7 +246,7 @@ int main(int argc, char *argv[])
             qInfo("window: %s", qPrintable(obj->objectName()));
         QTimer::singleShot(1200, &app, [&bridge] {
             bridge.openChat();
-            bridge.petClicked(420, 420, 320);
+            bridge.petClicked(120, 100, 240, 320);
             bridge.openManager();
         });
         QTimer::singleShot(1500, &app, [&bridge] { bridge.sendChat(QStringLiteral("你好")); });
@@ -237,7 +259,7 @@ int main(int argc, char *argv[])
         qInfo("demo mode: dir=%s", qPrintable(demoDir));
         QTimer::singleShot(1200, &app, [&bridge] {
             bridge.openChat();
-            bridge.petClicked(420, 420, 320);
+            bridge.petClicked(120, 100, 240, 320);
         });
         const QString demoText = parser.isSet(demoTextOption)
                                      ? parser.value(demoTextOption)

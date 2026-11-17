@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QSaveFile>
@@ -278,7 +279,20 @@ bool CharacterStore::meta(const QString &id, CharacterMeta *meta, QString *error
     meta->scale = root.value(QStringLiteral("scale")).toDouble(1.0);
     meta->enabled = root.value(QStringLiteral("enabled")).toBool(true);
     meta->worldId = root.value(QStringLiteral("worldId")).toString();
-    meta->hitAreas = root.value(QStringLiteral("hitAreas")).toObject();
+    const QJsonValue hitAreasValue = root.value(QStringLiteral("hitAreas"));
+    if (hitAreasValue.isArray()) {
+        // 兼容角色包 meta.json 的数组写法（见 HitAreaMeta），内部转成 id → 对象。
+        QJsonObject converted;
+        for (const QJsonValue &value : hitAreasValue.toArray()) {
+            const QJsonObject area = value.toObject();
+            const QString id = area.value(QStringLiteral("id")).toString();
+            if (!id.isEmpty())
+                converted.insert(id, area);
+        }
+        meta->hitAreas = converted;
+    } else {
+        meta->hitAreas = hitAreasValue.toObject();
+    }
     meta->motions = root.value(QStringLiteral("motions")).toObject();
     const QJsonObject anchor = root.value(QStringLiteral("anchor")).toObject();
     meta->anchor =

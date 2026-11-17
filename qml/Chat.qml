@@ -22,6 +22,7 @@ Window {
     Dialog {
         id: clearConfirm
         title: qsTr("清空对话")
+        width: 360
         modal: true
         anchors.centerIn: Overlay.overlay
         standardButtons: Dialog.Ok | Dialog.Cancel
@@ -32,6 +33,7 @@ Window {
     Dialog {
         id: restartDialog
         title: qsTr("重启对话")
+        width: 380
         modal: true
         anchors.centerIn: Overlay.overlay
         standardButtons: Dialog.Ok | Dialog.Cancel
@@ -46,6 +48,7 @@ Window {
         id: backtrackDialog
         property int targetIndex: -1
         title: qsTr("回溯对话")
+        width: 380
         modal: true
         anchors.centerIn: Overlay.overlay
         standardButtons: Dialog.Ok | Dialog.Cancel

@@ -6,6 +6,9 @@
 #include <QDesktopServices>
 #include <QDirIterator>
 #include <QFile>
+#include <QUrl>
+#include <QImage>
+#include <QJsonDocument>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QTextStream>
@@ -24,6 +27,7 @@
 #include "characterstore.h"
 #include "chatstore.h"
 #include "errorcodes.h"
+#include "hitareameta.h"
 #include "intimacyservice.h"
 #include "memorystore.h"
 #include "personafile.h"
@@ -34,6 +38,14 @@
 
 namespace
 {
+QJsonArray hitAreasToArray(const QJsonObject &map)
+{
+    QJsonArray array;
+    for (const QJsonValue &value : map)
+        array.append(value);
+    return array;
+}
+
 QStringList idleLines()
 {
     return {
@@ -343,7 +355,7 @@ QVariantMap Bridge::presetDefaults(const QString &preset) const
     return defaults;
 }
 
-void Bridge::petClicked(double x, double y, double height)
+void Bridge::petClicked(double x, double y, double width, double height)
 {
     static const QStringList headLines = {
         QStringLiteral("别摸头啦～"),
@@ -357,15 +369,36 @@ void Bridge::petClicked(double x, double y, double height)
         QStringLiteral("脚底痒痒的～"),
     };
 
+    QStringList areaLines;
+    QString areaId;
+    const QString characterId = m_config->values().characterId;
+    if (!characterId.isEmpty() && m_characters->contains(characterId)) {
+        CharacterMeta meta;
+        QString error;
+        if (m_characters->meta(characterId, &meta, &error) && !meta.hitAreas.isEmpty()) {
+            HitAreaMeta hitAreaMeta;
+            const QJsonObject root{{QStringLiteral("hitAreas"), hitAreasToArray(meta.hitAreas)}};
+            if (hitAreaMeta.loadFromJson(QJsonDocument(root).toJson(), &error)) {
+                const QPointF normalized(width > 0.0 ? x / width : 0.5,
+                                         height > 0.0 ? y / height : 0.5);
+                areaId = hitAreaMeta.hitAreaAt(normalized);
+                if (const HitArea *area = hitAreaMeta.find(areaId))
+                    areaLines = area->lines;
+            }
+        }
+    }
+
     const double ratio = height > 0.0 ? y / height : 0.5;
     const QStringList *lines = &bodyLines;
     if (ratio < 0.32)
         lines = &headLines;
     else if (ratio > 0.72)
         lines = &feetLines;
-    STACKLOG_DEBUG() << "pet clicked at " << x << "," << y << " ratio=" << ratio;
+    STACKLOG_DEBUG() << "pet clicked at " << x << "," << y << " area=" << areaId.toStdString()
+                     << " ratio=" << ratio;
 
-    m_bubbleText = lines->at(QRandomGenerator::global()->bounded(lines->size()));
+    const QStringList &chosen = areaLines.isEmpty() ? *lines : areaLines;
+    m_bubbleText = chosen.at(QRandomGenerator::global()->bounded(chosen.size()));
     emit bubbleTextChanged();
     positionBubble(x, y);
     setBubbleVisible(true);
@@ -539,7 +572,11 @@ void Bridge::showPetMenu()
 {
     QMenu menu;
     QAction *chatAction = menu.addAction(QStringLiteral("打开聊天"));
+    QAction *characterAction = menu.addAction(QStringLiteral("切换角色"));
     QAction *settingsAction = menu.addAction(QStringLiteral("设置…"));
+    QAction *throughAction = menu.addAction(m_config->values().clickThrough
+                                                ? QStringLiteral("关闭点击穿透")
+                                                : QStringLiteral("开启点击穿透"));
     QAction *hideAction = menu.addAction(QStringLiteral("隐藏桌宠"));
     menu.addSeparator();
     QAction *quitAction = menu.addAction(QStringLiteral("退出"));
@@ -547,8 +584,12 @@ void Bridge::showPetMenu()
     QAction *chosen = menu.exec(QCursor::pos());
     if (chosen == chatAction)
         openChat();
+    else if (chosen == characterAction)
+        cycleCharacter();
     else if (chosen == settingsAction)
         openManager();
+    else if (chosen == throughAction)
+        setClickThrough(!m_config->values().clickThrough);
     else if (chosen == hideAction)
         setPetVisible(false);
     else if (chosen == quitAction)
@@ -629,6 +670,7 @@ QString Bridge::currentCharacterName() const
 void Bridge::refreshCharacters()
 {
     emit charactersChanged();
+    emit avatarPathChanged();
 }
 
 void Bridge::refreshWorlds()
@@ -732,6 +774,7 @@ void Bridge::applyCharacterContext()
         QString intimacyError;
         m_intimacy->load(characterId, &intimacyError);
         emit intimacyChanged();
+        emit avatarPathChanged();
     } else {
         const Persona legacy = m_personas->find(personaId);
         PromptContext context;
@@ -820,7 +863,11 @@ void Bridge::importAvatarFile()
         return;
     }
     refreshCharacters();
-    reportInfo(QStringLiteral("已更新角色形象"));
+    const QImage image(path);
+    if (!image.isNull() && !image.hasAlphaChannel())
+        reportInfo(QStringLiteral("已更新角色形象；图片无透明通道，点击穿透会按整张图矩形生效"));
+    else
+        reportInfo(QStringLiteral("已更新角色形象"));
 }
 
 QVariantMap Bridge::personaFields(const QString &personaId) const
@@ -1177,6 +1224,122 @@ void Bridge::setProactiveFrequency(int frequency)
     m_config->save();
     scheduleProactive();
     emit settingsChanged();
+}
+
+bool Bridge::idleMotion() const
+{
+    return m_config->values().idleMotion;
+}
+
+void Bridge::setIdleMotion(bool enabled)
+{
+    m_config->setPetBehavior(enabled, m_config->values().idleAmplitude,
+                             m_config->values().clickThrough, m_config->values().debugHitAreas);
+    m_config->save();
+    emit settingsChanged();
+}
+
+double Bridge::idleAmplitude() const
+{
+    return m_config->values().idleAmplitude;
+}
+
+void Bridge::setIdleAmplitude(double amplitude)
+{
+    m_config->setPetBehavior(m_config->values().idleMotion, qBound(0.0, amplitude, 3.0),
+                             m_config->values().clickThrough, m_config->values().debugHitAreas);
+    m_config->save();
+    emit settingsChanged();
+}
+
+bool Bridge::clickThrough() const
+{
+    return m_config->values().clickThrough;
+}
+
+void Bridge::setClickThrough(bool enabled)
+{
+    m_config->setPetBehavior(m_config->values().idleMotion, m_config->values().idleAmplitude,
+                             enabled, m_config->values().debugHitAreas);
+    m_config->save();
+    emit settingsChanged();
+}
+
+bool Bridge::debugHitAreas() const
+{
+    return m_config->values().debugHitAreas;
+}
+
+void Bridge::setDebugHitAreas(bool enabled)
+{
+    m_config->setPetBehavior(m_config->values().idleMotion, m_config->values().idleAmplitude,
+                             m_config->values().clickThrough, enabled);
+    m_config->save();
+    emit settingsChanged();
+}
+
+QString Bridge::currentAvatarPath() const
+{
+    const QString characterId = m_config->values().characterId;
+    if (!characterId.isEmpty() && m_characters->contains(characterId)) {
+        const QString avatar = m_characters->primaryAvatar(characterId);
+        if (!avatar.isEmpty())
+            return QUrl::fromLocalFile(avatar).toString();
+    }
+    return QStringLiteral("qrc:/pet.png");
+}
+
+QVariantList Bridge::hitAreaRects() const
+{
+    QVariantList result;
+    const QString characterId = m_config->values().characterId;
+    if (characterId.isEmpty() || !m_characters->contains(characterId))
+        return result;
+    CharacterMeta meta;
+    QString error;
+    const bool hasMeta = m_characters->meta(characterId, &meta, &error);
+    STACKLOG_DEBUG() << "hitAreaRects: hasMeta=" << hasMeta << " keys=" << meta.hitAreas.keys().size()
+                     << " error=" << error.toStdString();
+    if (!hasMeta || meta.hitAreas.isEmpty())
+        return result;
+
+    HitAreaMeta hitAreaMeta;
+    const QJsonObject root{{QStringLiteral("hitAreas"), hitAreasToArray(meta.hitAreas)}};
+    if (!hitAreaMeta.loadFromJson(QJsonDocument(root).toJson(), &error)) {
+        STACKLOG_WARN() << "hitAreaRects parse failed: " << error.toStdString();
+        return result;
+    }
+    STACKLOG_DEBUG() << "hitAreaRects: areas=" << hitAreaMeta.areaCount();
+    for (const HitArea &area : hitAreaMeta.areas()) {
+        QVariantMap item;
+        item.insert(QStringLiteral("id"), area.id);
+        item.insert(QStringLiteral("name"), area.name);
+        item.insert(QStringLiteral("x"), area.rect.x());
+        item.insert(QStringLiteral("y"), area.rect.y());
+        item.insert(QStringLiteral("w"), area.rect.width());
+        item.insert(QStringLiteral("h"), area.rect.height());
+        result.append(item);
+    }
+    return result;
+}
+
+void Bridge::cycleCharacter()
+{
+    const QList<Character> list = m_characters->list();
+    if (list.size() < 2) {
+        reportInfo(QStringLiteral("只有一个角色"));
+        return;
+    }
+    const QString current = m_config->values().characterId;
+    int index = 0;
+    for (int i = 0; i < list.size(); ++i) {
+        if (list.at(i).id == current) {
+            index = (i + 1) % list.size();
+            break;
+        }
+    }
+    selectCharacter(list.at(index).id);
+    reportInfo(QStringLiteral("已切换到角色：%1").arg(list.at(index).name));
 }
 
 void Bridge::scheduleProactive()

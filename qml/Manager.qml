@@ -546,6 +546,33 @@ Window {
                     checked: bridge.autoStart
                     onToggled: bridge.autoStart = checked
                 }
+                CheckBox {
+                    text: qsTr("透明区域点击穿透")
+                    checked: bridge.clickThrough
+                    onToggled: bridge.clickThrough = checked
+                }
+                CheckBox {
+                    text: qsTr("待机浮动")
+                    checked: bridge.idleMotion
+                    onToggled: bridge.idleMotion = checked
+                }
+                RowLayout {
+                    Label { text: qsTr("浮动幅度") }
+                    Slider {
+                        Layout.preferredWidth: 200
+                        from: 0.0
+                        to: 3.0
+                        stepSize: 0.1
+                        value: bridge.idleAmplitude
+                        onMoved: bridge.idleAmplitude = value
+                    }
+                    Label { text: Number(bridge.idleAmplitude).toFixed(1) }
+                }
+                CheckBox {
+                    text: qsTr("显示命中区（调试）")
+                    checked: bridge.debugHitAreas
+                    onToggled: bridge.debugHitAreas = checked
+                }
                 Item { Layout.fillHeight: true }
             }
         }

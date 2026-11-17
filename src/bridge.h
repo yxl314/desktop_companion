@@ -50,6 +50,7 @@ class Bridge : public QObject
     Q_PROPERTY(QVariantList worlds READ worlds NOTIFY worldsChanged)
     Q_PROPERTY(QString currentCharacterId READ currentCharacterId NOTIFY settingsChanged)
     Q_PROPERTY(QString currentCharacterName READ currentCharacterName NOTIFY settingsChanged)
+    Q_PROPERTY(QString avatarPath READ currentAvatarPath NOTIFY avatarPathChanged)
     Q_PROPERTY(QString currentPersonaId READ currentPersonaId NOTIFY settingsChanged)
     Q_PROPERTY(int managerPage READ managerPage WRITE setManagerPage NOTIFY managerPageChanged)
     Q_PROPERTY(QVariantList memories READ memories NOTIFY memoriesChanged)
@@ -57,6 +58,10 @@ class Bridge : public QObject
     Q_PROPERTY(QString intimacyLevel READ intimacyLevel NOTIFY intimacyChanged)
     Q_PROPERTY(bool autoExtractMemories READ autoExtractMemories WRITE setAutoExtractMemories NOTIFY settingsChanged)
     Q_PROPERTY(int proactiveFrequency READ proactiveFrequency WRITE setProactiveFrequency NOTIFY settingsChanged)
+    Q_PROPERTY(bool idleMotion READ idleMotion WRITE setIdleMotion NOTIFY settingsChanged)
+    Q_PROPERTY(double idleAmplitude READ idleAmplitude WRITE setIdleAmplitude NOTIFY settingsChanged)
+    Q_PROPERTY(bool clickThrough READ clickThrough WRITE setClickThrough NOTIFY settingsChanged)
+    Q_PROPERTY(bool debugHitAreas READ debugHitAreas WRITE setDebugHitAreas NOTIFY settingsChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -98,6 +103,14 @@ public:
     void setAutoExtractMemories(bool enabled);
     int proactiveFrequency() const;
     void setProactiveFrequency(int frequency);
+    bool idleMotion() const;
+    void setIdleMotion(bool enabled);
+    double idleAmplitude() const;
+    void setIdleAmplitude(double amplitude);
+    bool clickThrough() const;
+    void setClickThrough(bool enabled);
+    bool debugHitAreas() const;
+    void setDebugHitAreas(bool enabled);
     void setManagerPage(int page);
     QStringList presets() const;
     QString presetName() const;
@@ -109,7 +122,10 @@ public:
     QString dataDir() const;
     QString logDir() const;
 
-    Q_INVOKABLE void petClicked(double x, double y, double height);
+    Q_INVOKABLE void petClicked(double x, double y, double width, double height);
+    Q_INVOKABLE QString currentAvatarPath() const;
+    Q_INVOKABLE QVariantList hitAreaRects() const;
+    Q_INVOKABLE void cycleCharacter();
     Q_INVOKABLE void setPetPosition(double x, double y);
     Q_INVOKABLE void openChat();
     Q_INVOKABLE void closeChat();
@@ -178,6 +194,7 @@ signals:
     void autoStartChanged();
     void managerPageChanged();
     void charactersChanged();
+    void avatarPathChanged();
     void worldsChanged();
     void memoriesChanged();
     void intimacyChanged();
