@@ -5,33 +5,49 @@
 #include <QDir>
 #include <QFile>
 #include <QIcon>
-#include <QMutex>
+#include <QImage>
 #include <QMenu>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
-#include <QScreen>
 #include <QPixmap>
+#include <QScreen>
+#include <QStandardPaths>
 #include <QSystemTrayIcon>
 #include <QTimer>
 #include <QUrl>
 
+#include <singleproc/singleproc.hpp>
+#include <stacklog/stacklog.hpp>
+
 #include "bridge.h"
 
-namespace {
-QMutex g_logMutex;
-QFile g_logFile;
-
-void fileMessageHandler(QtMsgType, const QMessageLogContext &, const QString &message)
+namespace
 {
-    QMutexLocker locker(&g_logMutex);
-    if (!g_logFile.isOpen())
-        return;
-    g_logFile.write(message.toUtf8());
-    g_logFile.write("\n");
-    g_logFile.flush();
+
+/// 把 Qt 的日志转发到 stacklog，保证日志只有一个出口。
+void qtMessageHandler(QtMsgType type, const QMessageLogContext &, const QString &message)
+{
+    const std::string text = message.toStdString();
+    switch (type)
+    {
+    case QtDebugMsg:
+        STACKLOG_LOG(stacklog::level::debug) << text;
+        break;
+    case QtInfoMsg:
+        STACKLOG_LOG(stacklog::level::info) << text;
+        break;
+    case QtWarningMsg:
+        STACKLOG_LOG(stacklog::level::warn) << text;
+        break;
+    case QtCriticalMsg:
+    case QtFatalMsg:
+        STACKLOG_LOG(stacklog::level::error) << text;
+        break;
+    }
 }
-}
+
+} // namespace
 
 int main(int argc, char *argv[])
 {
@@ -56,17 +72,44 @@ int main(int argc, char *argv[])
     const QString smokeDir = smokeMode ? parser.value(smokeOption) : QString();
     const bool shotMode = parser.isSet(shotOption);
     const QString shotDir = shotMode ? parser.value(shotOption) : QString();
-    if (smokeMode || shotMode) {
-        const QString logDir = smokeMode ? smokeDir : shotDir;
-        QDir().mkpath(logDir);
-        g_logFile.setFileName(logDir + QStringLiteral("/run.log"));
-        if (!g_logFile.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
-            return 1;
-        qInstallMessageHandler(fileMessageHandler);
-    }
 
-    // 透明窗口需要默认 alpha buffer
+    const QString appDataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QString logDir = appDataDir + QStringLiteral("/logs");
+    if (smokeMode)
+        logDir = smokeDir + QStringLiteral("/logs");
+    else if (shotMode)
+        logDir = shotDir + QStringLiteral("/logs");
+
+    stacklog::config logConfig;
+    logConfig.dir = logDir.toStdString();
+    logConfig.base_name = "desktop_companion";
+    logConfig.min_level = stacklog::level::debug;
+    const bool loggingReady = stacklog::init(logConfig);
+    qInstallMessageHandler(qtMessageHandler);
+    if (loggingReady)
+        STACKLOG_INFO() << "desktop_companion starting, log dir: " << logConfig.dir;
+    else
+        STACKLOG_ERROR() << "stacklog init failed, falling back to stderr";
+
     QQuickWindow::setDefaultAlphaBuffer(true);
+
+    // 单实例：第一次启动成为主实例，后续启动只发门铃通知并退出。
+    const QString runtimeDir = appDataDir + QStringLiteral("/runtime");
+    QDir().mkpath(runtimeDir);
+    singleproc::Guard guard(QStringLiteral("desktop_companion").toStdString(), runtimeDir.toStdString());
+    if (guard.state() == singleproc::Guard::State::AlreadyRunning)
+    {
+        STACKLOG_INFO() << "another instance is running, doorbell sent, runtime=" << runtimeDir.toStdString();
+        stacklog::shutdown();
+        return 0;
+    }
+    if (guard.state() == singleproc::Guard::State::Error)
+    {
+        STACKLOG_ERROR() << "single-instance guard failed, error_code=" << guard.error_code();
+        stacklog::shutdown();
+        return 1;
+    }
+    STACKLOG_INFO() << "primary instance acquired, key=desktop_companion, runtime=" << runtimeDir.toStdString();
 
     Bridge bridge;
 
@@ -92,8 +135,19 @@ int main(int argc, char *argv[])
 
     if (engine.rootObjects().isEmpty()) {
         qCritical("QML 加载失败");
+        stacklog::shutdown();
         return 1;
     }
+
+    // 二次启动：门铃触发的提示，由主实例气泡展示。
+    guard.set_doorbell_handler([&bridge] {
+        STACKLOG_INFO() << "doorbell received: second launch";
+        bridge.notifyAlreadyRunning();
+    });
+    QTimer doorbellTimer;
+    doorbellTimer.setInterval(250);
+    QObject::connect(&doorbellTimer, &QTimer::timeout, &app, [&guard] { guard.process_doorbell(0); });
+    doorbellTimer.start();
 
     QSystemTrayIcon tray(QIcon(QStringLiteral(":/pet.png")));
     tray.setToolTip(QStringLiteral("桌面桌宠（原型）"));
@@ -111,29 +165,6 @@ int main(int argc, char *argv[])
             bridge.openChat();
     });
     tray.show();
-
-    if (shotMode) {
-        QTimer::singleShot(2500, &app, [&engine, shotDir] {
-            QScreen *screen = QGuiApplication::primaryScreen();
-            if (screen) {
-                qInfo("screen geo=%dx%d avail=%dx%d size=%dx%d dpr=%.2f",
-                      screen->geometry().width(), screen->geometry().height(),
-                      screen->availableGeometry().width(), screen->availableGeometry().height(),
-                      screen->size().width(), screen->size().height(), screen->devicePixelRatio());
-                for (QObject *obj : engine.rootObjects()) {
-                    auto *window = qobject_cast<QQuickWindow *>(obj);
-                    if (!window)
-                        continue;
-                    qInfo("win %s pos=%d,%d size=%d,%d visible=%d", qPrintable(window->objectName()),
-                          window->x(), window->y(), window->width(), window->height(),
-                          int(window->isVisible()));
-                }
-                const QPixmap pixmap = screen->grabWindow(0);
-                pixmap.toImage().save(shotDir + QStringLiteral("/desktop.png"));
-            }
-            QCoreApplication::quit();
-        });
-    }
 
     if (smokeMode) {
         const QString &dir = smokeDir;
@@ -173,5 +204,31 @@ int main(int argc, char *argv[])
         QTimer::singleShot(3800, &app, [] { QCoreApplication::quit(); });
     }
 
-    return app.exec();
+    if (shotMode) {
+        QTimer::singleShot(2500, &app, [&engine, shotDir] {
+            QScreen *screen = QGuiApplication::primaryScreen();
+            if (screen) {
+                qInfo("screen geo=%dx%d avail=%dx%d size=%dx%d dpr=%.2f",
+                      screen->geometry().width(), screen->geometry().height(),
+                      screen->availableGeometry().width(), screen->availableGeometry().height(),
+                      screen->size().width(), screen->size().height(), screen->devicePixelRatio());
+                for (QObject *obj : engine.rootObjects()) {
+                    auto *window = qobject_cast<QQuickWindow *>(obj);
+                    if (!window)
+                        continue;
+                    qInfo("win %s pos=%d,%d size=%d,%d visible=%d", qPrintable(window->objectName()),
+                          window->x(), window->y(), window->width(), window->height(),
+                          int(window->isVisible()));
+                }
+                const QPixmap pixmap = screen->grabWindow(0);
+                pixmap.toImage().save(shotDir + QStringLiteral("/desktop.png"));
+            }
+            QCoreApplication::quit();
+        });
+    }
+
+    const int exitCode = app.exec();
+    STACKLOG_INFO() << "desktop_companion exiting, code=" << exitCode;
+    stacklog::shutdown();
+    return exitCode;
 }

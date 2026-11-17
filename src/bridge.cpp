@@ -8,6 +8,8 @@
 #include <QScreen>
 #include <QSettings>
 
+#include <stacklog/stacklog.hpp>
+
 namespace {
 const QList<QString> kIdleLines = {
     QStringLiteral("嗯？"),
@@ -90,6 +92,7 @@ void Bridge::setStatusText(const QString &text)
 
 void Bridge::petClicked(double x, double y)
 {
+    STACKLOG_DEBUG() << "pet clicked at " << x << "," << y;
     m_bubbleText = kIdleLines.at(QRandomGenerator::global()->bounded(kIdleLines.size()));
     emit bubbleTextChanged();
     positionBubble(x, y);
@@ -119,6 +122,7 @@ void Bridge::setPetPosition(double x, double y)
 
 void Bridge::openChat()
 {
+    STACKLOG_INFO() << "open chat window";
     setChatVisible(true);
     setBubbleVisible(false);
 }
@@ -133,13 +137,24 @@ void Bridge::sendChat(const QString &text)
     const QString trimmed = text.trimmed();
     if (trimmed.isEmpty())
         return;
+    STACKLOG_INFO() << "chat send: " << trimmed.toStdString();
     emit chatMessage(QStringLiteral("user"), trimmed);
     m_engine.send(trimmed);
 }
 
 void Bridge::togglePet()
 {
+    STACKLOG_DEBUG() << "toggle pet visibility";
     setPetVisible(!m_petVisible);
+}
+
+void Bridge::notifyAlreadyRunning()
+{
+    m_bubbleText = QStringLiteral("我已经在桌面上啦～");
+    emit bubbleTextChanged();
+    positionBubble(m_petX, m_petY);
+    setBubbleVisible(true);
+    m_bubbleTimer.start(4200);
 }
 
 void Bridge::showPetMenu()
@@ -161,5 +176,6 @@ void Bridge::showPetMenu()
 
 void Bridge::quitApp()
 {
+    STACKLOG_INFO() << "quit requested";
     QApplication::quit();
 }

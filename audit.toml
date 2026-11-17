@@ -1,0 +1,53 @@
+# cxx_audit 配置 —— desktop_companion
+#
+# 在仓库根目录运行（Windows 构建机上用 mingw64 的 clang-tidy）：
+#     PYTHONPATH=<cxx_audit>/src python -m cpp_audit -c audit.toml tidy
+#
+# cpd 需要 PMD（npm）；本机未装 node/npm，默认关闭。
+# asan / valgrind 只在 POSIX 且工具可用时启用，Windows 上关闭。
+[project]
+name = "desktop_companion"
+root = "."
+sources = ["src", "tests"]
+excludes = ["build", ".git", "docs", "third_party", "dist", "ci-logs", "reports"]
+build_system = "cmake"
+project_file = "CMakeLists.txt"
+build_dir = "build/audit"
+target = "desktop_companion"
+
+[compat]
+# 项目已是 C++23，compat 规则面向 C++98，启用只会产生系统性误报。
+enabled = false
+rules = []
+
+[tidy]
+enabled = true
+# clang-tidy 检查集由项目根目录 .clang-tidy 提供。
+fail_on_warnings = false
+
+[cpd]
+enabled = false
+dirs = ["src"]
+min_tokens = 70
+
+[asan]
+enabled = false
+build_dir = "build/asan"
+compiler = "clang++"
+cxxflags = ["-std=c++23", "-fsanitize=address", "-fno-omit-frame-pointer", "-g", "-O0"]
+ldflags = ["-fsanitize=address"]
+checks = ["detect_leaks"]
+timeout_sec = 120
+
+[valgrind]
+enabled = false
+build_dir = "build/debug"
+compiler = "clang++"
+cxxflags = ["-std=c++23", "-g", "-O0"]
+tool = "memcheck"
+checks = ["leaks"]
+extra_args = ["--undef-value-errors=no"]
+timeout_sec = 180
+
+[reports]
+dir = "reports"

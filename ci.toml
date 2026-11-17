@@ -1,0 +1,25 @@
+# cxx_ci 配置 —— desktop_companion
+#
+# 在仓库根目录运行：
+#     PYTHONPATH=<cxx_ci>/src python -m cxx_ci.ci_tool -c ci.toml
+#
+# CMAKE_PREFIX_PATH 同时给出本仓库验证过的两个 Qt 位置：
+# Windows 构建机（MSYS2 ucrt64）与 honor 设备（官方 Qt 6.12 aarch64）。
+name = "desktop_companion"
+build_system = "cmake"
+source_dir = "."
+project_file = "CMakeLists.txt"
+build_dir = "build/ci"
+configure_args = [
+    "-DCMAKE_BUILD_TYPE=Debug",
+    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+    "-DCMAKE_PREFIX_PATH=C:/msys2/ucrt64;/opt/Qt/6.12.0/gcc_arm64",
+]
+
+[output]
+build = "warnings"
+test = "failures"
+dir = "ci-logs"
+
+[test]
+framework = "ctest"

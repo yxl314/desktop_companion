@@ -46,6 +46,7 @@ public:
     Q_INVOKABLE void togglePet();
     Q_INVOKABLE void showPetMenu();
     Q_INVOKABLE void quitApp();
+    Q_INVOKABLE void notifyAlreadyRunning();
 
 signals:
     void petVisibleChanged();

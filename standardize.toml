@@ -1,0 +1,15 @@
+# cxx_ci/standardize 配置 —— desktop_companion
+#
+# 在仓库根目录运行：
+#     PYTHONPATH=<cxx_ci>/src python -m cxx_ci.standardize_tool --check
+#     PYTHONPATH=<cxx_ci>/src python -m cxx_ci.standardize_tool --apply
+[standardize]
+paths = ["src", "tests"]
+# 第三方库与生成代码不参与排版检查。
+exclude = ["third_party", "build", "dist", "ci-logs", "reports"]
+build_dir = "build/standardize"
+diff = "standardize.diff"
+stage_dir = ".standardize"
+auto_compile_commands = true
+tidy = true
+format = true

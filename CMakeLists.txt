@@ -4,8 +4,11 @@ project(desktop_companion VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Gui Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Gui Widgets Test)
 qt_standard_project_setup()
+
+add_subdirectory(third_party/stacklog)
+add_subdirectory(third_party/singleproc)
 
 qt_add_executable(desktop_companion WIN32
     src/main.cpp
@@ -30,4 +33,15 @@ qt_add_resources(desktop_companion "app_resources"
 
 target_link_libraries(desktop_companion PRIVATE
     Qt6::Quick Qt6::QuickControls2 Qt6::Gui Qt6::Widgets
+    stacklog::stacklog
+    singleproc::singleproc
 )
+
+install(TARGETS desktop_companion RUNTIME DESTINATION .)
+
+# 单元测试：与产品分开构建，不进入安装与打包。
+enable_testing()
+qt_add_executable(test_chatengine tests/test_chatengine.cpp tests/test_chatengine.h src/chatengine.h src/chatengine.cpp)
+target_include_directories(test_chatengine PRIVATE src)
+target_link_libraries(test_chatengine PRIVATE Qt6::Test Qt6::Core)
+add_test(NAME chatengine COMMAND test_chatengine)
