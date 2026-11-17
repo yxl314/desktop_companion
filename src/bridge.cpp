@@ -7,6 +7,8 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QUrl>
+#include <QGuiApplication>
+#include <QPalette>
 #include <QImage>
 #include <QJsonDocument>
 #include <QNetworkAccessManager>
@@ -513,7 +515,8 @@ void Bridge::closeChat()
 
 void Bridge::sendChat(const QString &text)
 {
-    STACKLOG_INFO() << "chat send: " << text.toStdString();
+    // 日志脱敏：只记录长度，不写用户原文。
+    STACKLOG_INFO() << "chat send: " << text.size() << " chars";
     scheduleProactive();
     m_chat->send(text);
 }
@@ -1490,6 +1493,53 @@ void Bridge::toggleMuteMode()
     setMode(m_config->values().mode == 2 ? 0 : 2);
     reportInfo(m_config->values().mode == 2 ? QStringLiteral("已进入勿扰模式")
                                            : QStringLiteral("已退出勿扰模式"));
+}
+
+int Bridge::theme() const
+{
+    return m_config->values().theme;
+}
+
+void Bridge::setTheme(int theme)
+{
+    m_config->setTheme(theme);
+    m_config->save();
+    emit settingsChanged();
+}
+
+bool Bridge::darkTheme() const
+{
+    if (m_config->values().theme == 1)
+        return true;
+    if (m_config->values().theme == 2) {
+        return QGuiApplication::palette().color(QPalette::Window).lightness() < 128;
+    }
+    return false;
+}
+
+QString Bridge::windowColor() const
+{
+    return darkTheme() ? QStringLiteral("#1e1e1e") : QStringLiteral("#faf9f6");
+}
+
+QString Bridge::cardColor() const
+{
+    return darkTheme() ? QStringLiteral("#2a2a2a") : QStringLiteral("#ffffff");
+}
+
+QString Bridge::borderColor() const
+{
+    return darkTheme() ? QStringLiteral("#3d3d3d") : QStringLiteral("#e2ded6");
+}
+
+QString Bridge::textColor() const
+{
+    return darkTheme() ? QStringLiteral("#e8e2d8") : QStringLiteral("#4a3b2e");
+}
+
+QString Bridge::secondaryTextColor() const
+{
+    return darkTheme() ? QStringLiteral("#a89f90") : QStringLiteral("#8a7a60");
 }
 
 void Bridge::checkUpdate()

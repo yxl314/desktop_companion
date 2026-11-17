@@ -14,6 +14,7 @@
 #include <QPixmap>
 #include <QScreen>
 #include <QStandardPaths>
+#include <QStyle>
 #include <QSystemTrayIcon>
 #include <QTimer>
 #include <QUrl>
@@ -54,6 +55,8 @@ void qtMessageHandler(QtMsgType type, const QMessageLogContext &, const QString 
 
 int main(int argc, char *argv[])
 {
+    // 统一使用 Basic 控件样式，便于浅/深主题调色板一致生效。
+    qputenv("QT_QUICK_CONTROLS_STYLE", "Material");
     QApplication app(argc, argv);
     app.setOrganizationName(QStringLiteral("desktop_companion"));
     app.setApplicationName(QStringLiteral("desktop_companion"));
@@ -141,6 +144,30 @@ int main(int argc, char *argv[])
     STACKLOG_INFO() << "primary instance acquired, key=desktop_companion, runtime=" << runtimeDir.toStdString();
 
     Bridge bridge;
+
+    const auto applyTheme = [&bridge] {
+        const int theme = bridge.theme();
+        QPalette palette;
+        if (theme == 1) {
+            palette.setColor(QPalette::Window, QColor(30, 30, 30));
+            palette.setColor(QPalette::WindowText, QColor(232, 226, 216));
+            palette.setColor(QPalette::Base, QColor(42, 42, 42));
+            palette.setColor(QPalette::AlternateBase, QColor(38, 38, 38));
+            palette.setColor(QPalette::Text, QColor(232, 226, 216));
+            palette.setColor(QPalette::Button, QColor(60, 60, 60));
+            palette.setColor(QPalette::ButtonText, QColor(232, 226, 216));
+            palette.setColor(QPalette::Highlight, QColor(79, 158, 109));
+            palette.setColor(QPalette::HighlightedText, Qt::white);
+            palette.setColor(QPalette::PlaceholderText, QColor(150, 150, 150));
+        } else {
+            // 浅色与跟随系统：使用当前系统/样式默认调色板。
+            palette = QApplication::style()->standardPalette();
+        }
+        QGuiApplication::setPalette(palette);
+    };
+    QObject::connect(&bridge, &Bridge::settingsChanged, &app, applyTheme);
+    applyTheme();
+
     GlobalHotkey globalHotkey;
     QObject::connect(&globalHotkey, &GlobalHotkey::togglePetRequested, &bridge, &Bridge::togglePet);
     QObject::connect(&globalHotkey, &GlobalHotkey::openChatRequested, &bridge, &Bridge::openChat);
@@ -167,31 +194,29 @@ int main(int argc, char *argv[])
         engine.load(QUrl(QStringLiteral("qrc") + path));
     };
     loadQml(QStringLiteral("Bubble"));
+
     loadQml(QStringLiteral("Ball"));
     loadQml(QStringLiteral("Chat"));
     loadQml(QStringLiteral("Manager"));
 
-    // 多桌宠：同一 Pet.qml 实例化最多 3 个窗口，由 petIndex 区分；
-    // 实际显示数量由 bridge.petCount 决定。
     QList<QQuickWindow *> petWindows;
-    {
-        QQmlComponent petComponent(&engine, QUrl(QStringLiteral("qrc:/qml/Pet.qml")));
-        if (petComponent.isError()) {
-            for (const QQmlError &error : petComponent.errors())
-                qWarning("pet component error: %s", qPrintable(error.toString()));
-        } else {
-            for (int i = 0; i < 3; ++i) {
-                QObject *object = petComponent.create();
-                if (object == nullptr) {
-                    qWarning("pet window %d create failed", i);
-                    continue;
-                }
-                object->setProperty("petIndex", i);
-                if (auto *window = qobject_cast<QQuickWindow *>(object))
-                    petWindows.append(window);
-            }
-        }
+    auto *petComponent = new QQmlComponent(&engine, QUrl(QStringLiteral("qrc:/qml/Pet.qml")));
+    if (petComponent->isError()) {
+        for (const QQmlError &error : petComponent->errors())
+            qWarning("pet component error: %s", qPrintable(error.toString()));
     }
+    const auto createPetWindow = [&petWindows, petComponent](int index) {
+        QObject *object = petComponent->create();
+        if (object == nullptr) {
+            qWarning("pet window %d create failed", index);
+            return;
+        }
+        object->setProperty("petIndex", index);
+        if (auto *window = qobject_cast<QQuickWindow *>(object))
+            petWindows.append(window);
+    };
+    for (int i = 0; i < bridge.petCount(); ++i)
+        createPetWindow(i);
 
     if (engine.rootObjects().isEmpty() || petWindows.isEmpty()) {
         qCritical("QML 加载失败");
@@ -227,6 +252,11 @@ int main(int argc, char *argv[])
     if (parser.isSet(hidePetOption))
         bridge.setPetVisible(false);
     QObject::connect(&bridge, &Bridge::charactersChanged, &app, applyPetMasks);
+    QObject::connect(&bridge, &Bridge::petLayoutChanged, &app, [&] {
+        while (petWindows.size() < bridge.petCount())
+            createPetWindow(petWindows.size());
+        applyPetMasks();
+    });
 
     // 二次启动：门铃触发的提示，由主实例气泡展示。
     guard.set_doorbell_handler([&bridge] {

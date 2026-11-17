@@ -73,6 +73,13 @@ class Bridge : public QObject
     Q_PROPERTY(double ballY READ ballY NOTIFY ballPosChanged)
     Q_PROPERTY(bool onboardingDone READ onboardingDone WRITE setOnboardingDone NOTIFY settingsChanged)
     Q_PROPERTY(QString updateResult READ updateResult NOTIFY updateResultChanged)
+    Q_PROPERTY(int theme READ theme WRITE setTheme NOTIFY settingsChanged)
+    Q_PROPERTY(bool darkTheme READ darkTheme NOTIFY settingsChanged)
+    Q_PROPERTY(QString windowColor READ windowColor NOTIFY settingsChanged)
+    Q_PROPERTY(QString cardColor READ cardColor NOTIFY settingsChanged)
+    Q_PROPERTY(QString borderColor READ borderColor NOTIFY settingsChanged)
+    Q_PROPERTY(QString textColor READ textColor NOTIFY settingsChanged)
+    Q_PROPERTY(QString secondaryTextColor READ secondaryTextColor NOTIFY settingsChanged)
 
 public:
     explicit Bridge(QObject *parent = nullptr);
@@ -133,6 +140,14 @@ public:
     bool onboardingDone() const;
     void setOnboardingDone(bool done);
     QString updateResult() const { return m_updateResult; }
+    int theme() const;
+    void setTheme(int theme);
+    bool darkTheme() const;
+    QString windowColor() const;
+    QString cardColor() const;
+    QString borderColor() const;
+    QString textColor() const;
+    QString secondaryTextColor() const;
     void setManagerPage(int page);
     QStringList presets() const;
     QString presetName() const;

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Layouts
 
 Window {
@@ -11,7 +12,9 @@ Window {
     title: qsTr("设置 · 桌面桌宠 ") + bridge.appVersion
     x: (Screen.width - width) / 2
     y: (Screen.height - height) / 2
-    color: "#faf9f6"
+    color: bridge.windowColor
+    Material.theme: bridge.darkTheme ? Material.Dark : Material.Light
+    Material.accent: "#6cbf8a"
 
     property int page: bridge.managerPage
     onClosing: (close) => {
@@ -31,7 +34,7 @@ Window {
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.onDialogAccept(inputDialog.value)
         contentItem: ColumnLayout {
-            Label { text: inputDialog.prompt; color: "#4a3b2e" }
+            Label { text: inputDialog.prompt; color: bridge.textColor }
             TextField {
                 id: inputField
                 Layout.preferredWidth: 360
@@ -173,7 +176,7 @@ Window {
                            + "3. 右键桌宠：切换角色、设置、点击穿透。\n"
                            + "4. 控制中心可配置模型、角色、人设、世界观、记忆与导出数据。\n"
                            + "5. 全局快捷键：Ctrl+Alt+P 显隐、Ctrl+Alt+C 聊天、Ctrl+Alt+M 勿扰。")
-                color: "#4a3b2e"
+                color: bridge.textColor
             }
         }
     }
@@ -195,7 +198,7 @@ Window {
             Item { Layout.fillWidth: true }
             Label {
                 text: qsTr("当前角色：") + bridge.currentCharacterName
-                color: "#8a7a60"
+                color: bridge.secondaryTextColor
                 font.pixelSize: 12
             }
         }
@@ -204,7 +207,7 @@ Window {
             Layout.fillWidth: true
             visible: bridge.statusText !== ""
             text: bridge.statusText
-            color: "#7a6a50"
+            color: bridge.secondaryTextColor
             font.pixelSize: 12
             wrapMode: Text.Wrap
         }
@@ -262,7 +265,7 @@ Window {
                     text: bridge.testResult
                     visible: bridge.testResult !== ""
                     wrapMode: Text.Wrap
-                    color: "#7a6a50"
+                    color: bridge.secondaryTextColor
                     font.pixelSize: 12
                 }
                 RowLayout {
@@ -277,7 +280,7 @@ Window {
                 Label {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    color: "#a08a66"
+                    color: bridge.secondaryTextColor
                     font.pixelSize: 12
                     text: qsTr("提示：Ollama 需先 ollama serve；LM Studio 需开启本地服务；云端 API 需填 Key。\n"
                                + "保存后立即生效；不配置时回退到本地 mock。")
@@ -298,8 +301,8 @@ Window {
                         width: ListView.view.width
                         height: 64
                         radius: 8
-                        color: modelData.current ? "#e8f5ec" : "#ffffff"
-                        border.color: modelData.current ? "#8fd3a8" : "#e2ded6"
+                        color: modelData.current ? "#e8f5ec" : bridge.cardColor
+                        border.color: modelData.current ? "#8fd3a8" : bridge.borderColor
                         RowLayout {
                             anchors.fill: parent
                             anchors.margins: 8
@@ -312,10 +315,10 @@ Window {
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true
-                                Label { text: modelData.name; color: "#4a3b2e"; font.pixelSize: 15 }
+                                Label { text: modelData.name; color: bridge.textColor; font.pixelSize: 15 }
                                 Label {
                                     text: modelData.worldId ? qsTr("世界观：") + modelData.worldId : qsTr("未绑定世界观")
-                                    color: "#8a7a60"; font.pixelSize: 11
+                                    color: bridge.secondaryTextColor; font.pixelSize: 11
                                 }
                             }
                             Label { text: qsTr("使用中"); visible: modelData.current; color: "#4f9e6d"; font.pixelSize: 12 }
@@ -355,12 +358,12 @@ Window {
                     Layout.fillWidth: true
                     Label {
                         text: qsTr("当前人设：") + bridge.personaName
-                        color: "#4a3b2e"
+                        color: bridge.textColor
                     }
                     Item { Layout.fillWidth: true }
                     Label {
                         text: qsTr("好感度：") + bridge.intimacyScore + qsTr("（") + bridge.intimacyLevel + qsTr("）")
-                        color: "#8a7a60"
+                        color: bridge.secondaryTextColor
                         font.pixelSize: 12
                     }
                 }
@@ -374,15 +377,15 @@ Window {
                         width: ListView.view.width
                         height: 44
                         radius: 8
-                        color: modelData.current ? "#e8f5ec" : "#ffffff"
-                        border.color: modelData.current ? "#8fd3a8" : "#e2ded6"
+                        color: modelData.current ? "#e8f5ec" : bridge.cardColor
+                        border.color: modelData.current ? "#8fd3a8" : bridge.borderColor
                         RowLayout {
                             anchors.fill: parent
                             anchors.margins: 8
                             Label {
                                 Layout.fillWidth: true
                                 text: modelData.name
-                                color: "#4a3b2e"
+                                color: bridge.textColor
                                 elide: Text.ElideRight
                             }
                             Label { text: qsTr("使用中"); visible: modelData.current; color: "#4f9e6d"; font.pixelSize: 12 }
@@ -418,7 +421,7 @@ Window {
                 Label {
                     Layout.fillWidth: true
                     text: qsTr("记忆（当前角色 / 人设）")
-                    color: "#4a3b2e"
+                    color: bridge.textColor
                 }
                 ListView {
                     Layout.fillWidth: true
@@ -430,8 +433,8 @@ Window {
                         width: ListView.view.width
                         height: 48
                         radius: 8
-                        color: modelData.pinned ? "#fff7e0" : "#ffffff"
-                        border.color: modelData.pinned ? "#e6c86e" : "#e2ded6"
+                        color: modelData.pinned ? "#fff7e0" : bridge.cardColor
+                        border.color: modelData.pinned ? "#e6c86e" : bridge.borderColor
                         RowLayout {
                             anchors.fill: parent
                             anchors.margins: 8
@@ -439,7 +442,7 @@ Window {
                             Label {
                                 Layout.fillWidth: true
                                 text: (modelData.pinned ? "📌 " : "") + modelData.content
-                                color: "#4a3b2e"
+                                color: bridge.textColor
                                 elide: Text.ElideRight
                             }
                             Button {
@@ -489,15 +492,15 @@ Window {
                         width: ListView.view.width
                         height: 44
                         radius: 8
-                        color: "#ffffff"
-                        border.color: "#e2ded6"
+                        color: bridge.cardColor
+                        border.color: bridge.borderColor
                         RowLayout {
                             anchors.fill: parent
                             anchors.margins: 8
                             Label {
                                 Layout.fillWidth: true
                                 text: modelData.name
-                                color: "#4a3b2e"
+                                color: bridge.textColor
                                 elide: Text.ElideRight
                             }
                             Button {
@@ -534,10 +537,10 @@ Window {
             // ================= 数据 =================
             ColumnLayout {
                 spacing: 10
-                Label { text: qsTr("数据目录"); color: "#4a3b2e" }
-                Label { text: bridge.dataDir; color: "#8a7a60"; font.pixelSize: 12; wrapMode: Text.Wrap }
-                Label { text: qsTr("日志目录"); color: "#4a3b2e" }
-                Label { text: bridge.logDir; color: "#8a7a60"; font.pixelSize: 12; wrapMode: Text.Wrap }
+                Label { text: qsTr("数据目录"); color: bridge.textColor }
+                Label { text: bridge.dataDir; color: bridge.secondaryTextColor; font.pixelSize: 12; wrapMode: Text.Wrap }
+                Label { text: qsTr("日志目录"); color: bridge.textColor }
+                Label { text: bridge.logDir; color: bridge.secondaryTextColor; font.pixelSize: 12; wrapMode: Text.Wrap }
                 RowLayout {
                     Button { text: qsTr("导出聊天记录"); onClicked: bridge.exportChatHistory() }
                     Button { text: qsTr("导出日志"); onClicked: bridge.exportLogs() }
@@ -551,6 +554,15 @@ Window {
             ColumnLayout {
                 spacing: 12
                 RowLayout {
+                    Label { text: qsTr("主题") }
+                    ComboBox {
+                        Layout.preferredWidth: 160
+                        model: [qsTr("浅色"), qsTr("深色"), qsTr("跟随系统")]
+                        currentIndex: bridge.theme
+                        onActivated: bridge.theme = currentIndex
+                    }
+                }
+                RowLayout {
                     Label { text: qsTr("模式") }
                     ComboBox {
                         Layout.preferredWidth: 160
@@ -561,7 +573,7 @@ Window {
                     Label {
                         text: bridge.mode === 2 ? qsTr("勿扰：暂停主动互动与待机动效")
                                                 : qsTr("休闲模式会按频率主动说话")
-                        color: "#8a7a60"
+                        color: bridge.secondaryTextColor
                         font.pixelSize: 12
                     }
                 }
@@ -573,7 +585,7 @@ Window {
                 Label {
                     Layout.fillWidth: true
                     text: qsTr("全局快捷键：Ctrl+Alt+P 呼出/隐藏桌宠 · Ctrl+Alt+C 打开聊天 · Ctrl+Alt+M 勿扰模式")
-                    color: "#6b5c48"
+                    color: bridge.secondaryTextColor
                     font.pixelSize: 12
                     wrapMode: Text.Wrap
                 }
@@ -589,14 +601,14 @@ Window {
                     Layout.fillWidth: true
                     text: bridge.updateResult
                     visible: bridge.updateResult !== ""
-                    color: "#7a6a50"
+                    color: bridge.secondaryTextColor
                     font.pixelSize: 12
                     wrapMode: Text.Wrap
                 }
                 Label {
                     Layout.fillWidth: true
                     text: qsTr("提示：更新地址在 config.json 的 updateUrl 填写（JSON：version/url/notes）。")
-                    color: "#a08a66"
+                    color: bridge.secondaryTextColor
                     font.pixelSize: 11
                     wrapMode: Text.Wrap
                 }
@@ -611,12 +623,12 @@ Window {
                     text: qsTr("桌面桌宠 %1（原型）").arg(bridge.appVersion)
                     font.pixelSize: 18
                     font.bold: true
-                    color: "#4a3b2e"
+                    color: bridge.textColor
                 }
                 Label {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    color: "#6b5c48"
+                    color: bridge.secondaryTextColor
                     text: qsTr("Windows 单平台 · Qt 6.12 + C++23 · stacklog 日志 · singleproc 单实例\n"
                                + "聊天支持 OpenAI 兼容接口（Ollama / LM Studio / DeepSeek / OpenAI / OpenCode Go / 自定义）。")
                 }

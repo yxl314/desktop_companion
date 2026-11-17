@@ -104,4 +104,34 @@ void TestConfig::autoStartRoundTrip()
 #endif
 }
 
+void TestConfig::corruptConfigFallsBack()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.path() + QStringLiteral("/config.json");
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write("{ this is not json");
+    file.close();
+
+    ConfigStore store(path);
+    QCOMPARE(store.values().model, QStringLiteral("qwen2.5:7b"));
+    QCOMPARE(store.values().theme, 0);
+    QVERIFY(QFile::exists(path + QStringLiteral(".bak")));
+}
+
+void TestConfig::themeRoundTrip()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.path() + QStringLiteral("/config.json");
+    {
+        ConfigStore store(path);
+        store.setTheme(1);
+        QVERIFY(store.save());
+    }
+    ConfigStore loaded(path);
+    QCOMPARE(loaded.values().theme, 1);
+}
+
 QTEST_GUILESS_MAIN(TestConfig)

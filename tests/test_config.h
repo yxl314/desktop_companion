@@ -12,6 +12,8 @@ private slots:
     void personaImportAndRemove();
     void apiKeyIsEncrypted();
     void autoStartRoundTrip();
+    void corruptConfigFallsBack();
+    void themeRoundTrip();
 };
 
 #endif // TEST_CONFIG_H

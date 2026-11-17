@@ -30,10 +30,25 @@ ChatStore::ChatStore(const QString &dbPath, QObject *parent)
     QDir().mkpath(QFileInfo(m_dbPath).absolutePath());
     m_ready = openDatabase(m_dbPath) && createSchema();
     if (!m_ready) {
-        STACKLOG_ERROR() << "chat store unavailable: " << m_lastError.toStdString();
+        // 数据库损坏：备份后重建一次，尽量不丢历史；备份保留在现场便于排查。
+        STACKLOG_WARN() << "chat store open failed, trying recovery: " << m_lastError.toStdString();
         if (m_db != nullptr) {
             sqlite3_close(m_db);
             m_db = nullptr;
+        }
+        const QString backup = m_dbPath + QStringLiteral(".bak");
+        QFile::remove(backup);
+        if (QFile::exists(m_dbPath) && QFile::rename(m_dbPath, backup)) {
+            m_ready = openDatabase(m_dbPath) && createSchema();
+            if (m_ready)
+                STACKLOG_INFO() << "chat store recovered, original backup: " << backup.toStdString();
+        }
+        if (!m_ready) {
+            STACKLOG_ERROR() << "chat store unavailable: " << m_lastError.toStdString();
+            if (m_db != nullptr) {
+                sqlite3_close(m_db);
+                m_db = nullptr;
+            }
         }
     }
 }
@@ -102,7 +117,20 @@ bool ChatStore::createSchema()
         if (!exec(sql))
             return false;
     }
-    return true;
+
+    // schema 版本：1 = 0.3 起的会话/消息/meta 结构。
+    int version = 0;
+    sqlite3_stmt *statement = nullptr;
+    if (sqlite3_prepare_v2(m_db, "PRAGMA user_version", -1, &statement, nullptr) != SQLITE_OK)
+        return false;
+    if (sqlite3_step(statement) == SQLITE_ROW)
+        version = sqlite3_column_int(statement, 0);
+    sqlite3_finalize(statement);
+    if (version > 1) {
+        m_lastError = QStringLiteral("chat schema 版本过新：%1").arg(version);
+        return false;
+    }
+    return exec(QStringLiteral("PRAGMA user_version = 1"));
 }
 
 bool ChatStore::readMeta(const QString &key, QString *value) const

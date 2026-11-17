@@ -15,8 +15,8 @@ Window {
         anchors.fill: parent
         anchors.margins: 6
         radius: 14
-        color: "#fffdf7"
-        border.color: "#e8ddc8"
+        color: bridge.cardColor
+        border.color: bridge.borderColor
         border.width: 1
 
         Text {
@@ -25,7 +25,7 @@ Window {
             text: bridge.bubbleText
             wrapMode: Text.Wrap
             font.pixelSize: 15
-            color: "#333333"
+            color: bridge.textColor
             verticalAlignment: Text.AlignVCenter
         }
     }

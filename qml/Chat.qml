@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Layouts
 
 Window {
@@ -11,7 +12,9 @@ Window {
     title: qsTr("聊天 · ") + bridge.personaName
     x: (Screen.width - width) / 2
     y: (Screen.height - height) / 2
-    color: "#faf9f6"
+    color: bridge.windowColor
+    Material.theme: bridge.darkTheme ? Material.Dark : Material.Light
+    Material.accent: "#6cbf8a"
     onClosing: (close) => {
         close.accepted = false
         bridge.chatVisible = false
@@ -76,13 +79,13 @@ Window {
                 text: bridge.personaName
                 font.pixelSize: 16
                 font.bold: true
-                color: "#4a3b2e"
+                color: bridge.textColor
             }
             Item { Layout.fillWidth: true }
             Label {
                 text: bridge.modelSummary
                 font.pixelSize: 12
-                color: "#8a7a60"
+                color: bridge.secondaryTextColor
             }
         }
 
@@ -112,14 +115,14 @@ Window {
             text: qsTr("未配置模型，当前为本地 mock 回复。点「设置」接入 OpenAI 兼容 API。")
             visible: !bridge.llmReady
             wrapMode: Text.Wrap
-            color: "#a08a66"
+            color: bridge.secondaryTextColor
             font.pixelSize: 12
         }
 
         Label {
             text: bridge.statusText
             visible: bridge.statusText !== ""
-            color: "#7a6a50"
+            color: bridge.secondaryTextColor
             font.pixelSize: 12
         }
 
@@ -148,8 +151,8 @@ Window {
                             width: Math.min(bubbleText.implicitWidth + 20, list.width * 0.72)
                             height: bubbleText.implicitHeight + 16
                             radius: 10
-                            color: model.role === "user" ? "#8fd3a8" : "#ffffff"
-                            border.color: model.role === "user" ? "#6cbf8a" : "#e2ded6"
+                            color: model.role === "user" ? "#8fd3a8" : bridge.cardColor
+                            border.color: model.role === "user" ? "#6cbf8a" : bridge.borderColor
                             border.width: 1
 
                             Text {
@@ -158,7 +161,7 @@ Window {
                                 anchors.centerIn: parent
                                 text: model.text
                                 wrapMode: Text.Wrap
-                                color: "#333333"
+                                color: bridge.textColor
                                 font.pixelSize: 14
                             }
                         }
@@ -179,7 +182,7 @@ Window {
                 anchors.centerIn: parent
                 visible: messages.count === 0
                 text: qsTr("和小柚说点什么吧～")
-                color: "#b5a88e"
+                color: bridge.secondaryTextColor
                 font.pixelSize: 14
             }
         }

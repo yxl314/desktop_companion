@@ -31,13 +31,25 @@ ConfigStore::ConfigStore(const QString &filePath, QObject *parent)
 
 void ConfigStore::load()
 {
+    m_config = AppConfig{};
+    m_config.petPositions = QVector<QPointF>(3, QPointF(-1.0, -1.0));
+    m_config.petCharacters = QVector<QString>(3, QString());
+
     QFile file(m_filePath);
     if (!file.open(QIODevice::ReadOnly))
         return;
 
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
-    if (!document.isObject())
+    const QByteArray content = file.readAll();
+    QJsonParseError parseError{};
+    const QJsonDocument document = QJsonDocument::fromJson(content, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        // 配置损坏：备份原文件后回退默认值，避免下次保存覆盖掉用户数据。
+        file.close();
+        const QString backup = m_filePath + QStringLiteral(".bak");
+        QFile::remove(backup);
+        QFile::copy(m_filePath, backup);
         return;
+    }
 
     const QJsonObject root = document.object();
     m_config.preset = root.value(QStringLiteral("preset")).toString(m_config.preset);
@@ -59,6 +71,7 @@ void ConfigStore::load()
     m_config.autoExtractMemories = root.value(QStringLiteral("autoExtractMemories")).toBool(true);
     m_config.proactiveFrequency = root.value(QStringLiteral("proactiveFrequency")).toInt(0);
     m_config.mode = qBound(0, root.value(QStringLiteral("mode")).toInt(0), 2);
+    m_config.theme = qBound(0, root.value(QStringLiteral("theme")).toInt(0), 2);
     m_config.ballVisible = root.value(QStringLiteral("ballVisible")).toBool(true);
     m_config.ballX = root.value(QStringLiteral("ballX")).toDouble(-1.0);
     m_config.ballY = root.value(QStringLiteral("ballY")).toDouble(-1.0);
@@ -109,6 +122,7 @@ bool ConfigStore::save(QString *error)
     root.insert(QStringLiteral("autoExtractMemories"), m_config.autoExtractMemories);
     root.insert(QStringLiteral("proactiveFrequency"), m_config.proactiveFrequency);
     root.insert(QStringLiteral("mode"), m_config.mode);
+    root.insert(QStringLiteral("theme"), m_config.theme);
     root.insert(QStringLiteral("ballVisible"), m_config.ballVisible);
     root.insert(QStringLiteral("ballX"), m_config.ballX);
     root.insert(QStringLiteral("ballY"), m_config.ballY);
@@ -194,6 +208,12 @@ void ConfigStore::setEdgeHide(bool enabled)
 void ConfigStore::setMode(int mode)
 {
     m_config.mode = qBound(0, mode, 2);
+    emit changed();
+}
+
+void ConfigStore::setTheme(int theme)
+{
+    m_config.theme = qBound(0, theme, 2);
     emit changed();
 }
 
