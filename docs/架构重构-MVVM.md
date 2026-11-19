@@ -2,7 +2,7 @@
 
 > 目标：把当前「以桌宠为软件本体」的原型重构为 **经典 MVVM + 模块化** 的桌面应用：
 > 主窗口是软件本体（管理桌宠 / 模型 / 角色 / 专注聊天），桌宠是可从主窗口启动的可选窗口。
-> 参考 `/home/honor/桌面/code/real-esrguisoft` 的分层、主题 Token、i18n 与组件化实践。
+> 参考 `/home/honor/桌面/code/real_esrguisoft` 的分层、主题 Token、i18n 与组件化实践。
 
 ## 1. 分层与目录
 
@@ -98,7 +98,7 @@ src/
   模型（预设/参数/多配置/测试）、快捷键说明、更新、数据（导出/日志/打开目录）。
 - 桌宠窗口 `PetWindow.qml`、气泡、悬浮球保留；**删除独立桌面 Chat 窗口**，聊天统一在主窗口内。
 
-## 4. 设计 Token（对齐 real-esrguisoft）
+## 4. 设计 Token（对齐 real_esrguisoft）
 
 `qml/theme/Theme.qml`（QML singleton）+ `qml/theme/ThemeDark.qml`：
 颜色（两套）：`bgApp #FFFFFF / #1B1B1F`、`bgSidebar #F5F5F7 / #151518`、
