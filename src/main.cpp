@@ -147,14 +147,14 @@ int main(int argc, char *argv[])
     const QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation)
                                + QStringLiteral("/desktop_companion");
     QDir().mkpath(runtimeDir);
-    singleproc::Guard guard(QStringLiteral("desktop_companion").toStdString(),
+    singleproc::guard guard(QStringLiteral("desktop_companion").toStdString(),
                             runtimeDir.toStdString());
-    if (guard.state() == singleproc::Guard::State::AlreadyRunning) {
-        // Guard 构造时已自动给主实例发门铃通知。
+    if (guard.state() == singleproc::guard::status::already_running) {
+        // guard 构造时已自动给主实例发门铃通知。
         STACKLOG_INFO() << "another instance is running, doorbell notified";
         return 0;
     }
-    if (guard.state() == singleproc::Guard::State::Error) {
+    if (guard.state() == singleproc::guard::status::error) {
         STACKLOG_ERROR() << "single instance guard error: errno=" << guard.error_code();
         return 2;
     }

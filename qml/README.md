@@ -82,7 +82,8 @@ qml/
    - 删除旧 `Chat`/`Manager` 的加载；托盘/快捷键「打开聊天」= 显示主窗口 + `appVM.setPageIndex(0)`。
 5. **点击穿透/命中区遮罩**仍由 C++ `petwindowhelper` 按 alpha 生成窗口区域；
    PetWindow 未设置 `WindowTransparentForInput`（否则无法点击桌宠）。
-6. **QML 模块部署**：`windeployqt` 已配置扫描 `qml/`（`cxx_pkg.ini [qt] qmldir`），
+6. **QML 模块部署**：`windeployqt` 通过 `cxx_pkg.toml` 的 `[qt] qmldir` 扫描 `qml/`
+   （当前 cxx_pkg c8bacf9 校验该键有缺陷、暂未启用，见 `cxx_pkg.toml` 注释），
    会带上 `QtQuick.Shapes`（Icon 使用）与 `QtQuick.Controls` 等；无需额外链接。
 7. 控件样式：组件全部自绘背景/文字，不依赖 Material 的浮动 label；
    `QT_QUICK_CONTROLS_STYLE` 保持 Material 或 Basic 均可。

@@ -1,0 +1,38 @@
+# cxx_pkg 配置 —— desktop_companion（Windows MSYS2 ucrt64 + Qt6，自包含 zip）
+#
+# 在仓库根目录运行（Windows 构建机 MSYS2 UCRT64 shell）：
+#     cxx-pkg -c cxx_pkg.toml
+#     cxx-pkg -c cxx_pkg.toml --check-config
+#     cxx-pkg -c cxx_pkg.toml --dry-run
+#
+# 兼容版本：cxx_pkg c8bacf9（TOML 配置，取代旧 cxx_pkg.ini）。
+#
+# 已知工具侧问题（不在本仓库修）：cxx_pkg c8bacf9 的配置校验拒绝 [qt] qmldir
+# （deployer.py 已支持 --qmldir，但 config/reader.py 的 _DEFAULTS 未登记该键），
+# 因此这里暂时不能写 qmldir，windeployqt 不会扫描 qml/ 的 import。待 cxx_pkg
+# 修复后补上：
+#     [qt]
+#     qmldir = "qml"
+
+[project]
+name = "desktop_companion"
+version = "1.1.2"
+
+[build]
+system = "cmake"
+source = "."
+build_dir = "build/pkg"
+target = "desktop_companion"
+cmake_args = "-G Ninja -DCMAKE_BUILD_TYPE=Release"
+# 项目有 install(TARGETS desktop_companion RUNTIME DESTINATION .) 规则，
+# 保持 true 用 DESTDIR 把整套安装结果收进 staging（Windows 自包含布局）。
+install = true
+
+[package]
+formats = "zip"
+out_dir = "dist"
+checksums = true
+
+[qt]
+enabled = "auto"
+prefix = "C:/msys2/ucrt64"

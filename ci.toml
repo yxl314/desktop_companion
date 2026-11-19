@@ -1,7 +1,10 @@
-# cxx_ci 配置 —— desktop_companion
+# cxx_ci 配置 —— desktop_companion（cxx-ci 0.1.0 / cxx_ci 70dacb3）
 #
 # 在仓库根目录运行：
-#     PYTHONPATH=<cxx_ci>/src python -m cxx_ci.ci_tool -c ci.toml
+#     cxx-ci -c ci.toml
+#     cxx-ci -c ci.toml --check-config
+#     cxx-ci -c ci.toml --dry-run
+# 未安装时可用：PYTHONPATH=<cxx_ci>/src python3 -m cxx_ci.ci_tool -c ci.toml
 #
 # CMAKE_PREFIX_PATH 同时给出本仓库验证过的两个 Qt 位置：
 # Windows 构建机（MSYS2 ucrt64）与 honor 设备（官方 Qt 6.12 aarch64）。

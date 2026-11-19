@@ -1,8 +1,9 @@
-# cxx_ci/standardize 配置 —— desktop_companion
+# cxx_ci/standardize 配置 —— desktop_companion（cxx-standardize 0.1.0 / cxx_ci 70dacb3）
 #
 # 在仓库根目录运行：
-#     PYTHONPATH=<cxx_ci>/src python -m cxx_ci.standardize_tool --check
-#     PYTHONPATH=<cxx_ci>/src python -m cxx_ci.standardize_tool --apply
+#     cxx-standardize --check
+#     cxx-standardize --apply
+# 未安装时可用：PYTHONPATH=<cxx_ci>/src python3 -m cxx_ci.standardize_tool --check
 [standardize]
 paths = ["src", "tests"]
 # 第三方库与生成代码不参与排版检查。

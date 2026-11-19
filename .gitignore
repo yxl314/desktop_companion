@@ -13,3 +13,11 @@ build-*/
 .vscode/
 .idea/
 *.swp
+
+# 工具产物（cxx_pkg / cxx_audit / cxx_ci / cxx-standardize）
+dist/
+ci-logs/
+reports/
+.cxx_pkg-work/
+.standardize/
+standardize.diff

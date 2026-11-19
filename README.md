@@ -49,7 +49,8 @@ Model 层不感知界面。依赖单向向下。
   Ctrl+Alt+P/C/M、模式（休闲/工作/勿扰）、前台应用自动模式、主题浅/深/跟随、
   中英双语（QML + C++ 文案，切换重启生效）、检查更新、日志与数据导出、损坏自动恢复。
 - **验证/发布**：`--smoke/--shot/--demo/--manager-page/--hide-pet`；
-  cxx_ci / cxx_audit / cxx_pkg；需求矩阵与发布记录见 `docs/`。
+  `cxx-ci -c ci.toml` / `cxx-audit -c audit.toml all` / `cxx-pkg -c cxx_pkg.toml`
+  （配置文件 `ci.toml` / `audit.toml` / `cxx_pkg.toml`）；需求矩阵与发布记录见 `docs/`。
 
 ## 构建
 

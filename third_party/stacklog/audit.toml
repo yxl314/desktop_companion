@@ -1,13 +1,13 @@
 # cxx_audit 配置 —— stacklog
 #
 # 在仓库根目录运行：
-#     PYTHONPATH=../cxx_audit/src python3 -m cpp_audit -c audit.toml all
+#     cxx-audit -c audit.toml all
 #
 # 单项：
-#     ... cpp_audit -c audit.toml tidy
-#     ... cpp_audit -c audit.toml cpd
-#     ... cpp_audit -c audit.toml valgrind
-#     ... cpp_audit -c audit.toml build --kind asan
+#     cxx-audit -c audit.toml tidy
+#     cxx-audit -c audit.toml cpd
+#     cxx-audit -c audit.toml valgrind
+#     cxx-audit -c audit.toml build --kind asan
 [project]
 name = "stacklog"
 root = "."
@@ -16,7 +16,7 @@ excludes = ["build", ".git", "docs", "reports", "ci-logs"]
 build_system = "cmake"
 project_file = "CMakeLists.txt"
 build_dir = "build/audit"
-target = "stacklog_test_rotation_stress"
+target = "stacklog_integration_rotation_stress_flow"
 
 [compat]
 # 本项目明确要求 C++11；compat 规则面向 C++98，启用只会产生系统性误报。
@@ -34,8 +34,7 @@ dirs = ["src", "include"]
 min_tokens = 70
 
 [asan]
-# ASan 在本机可正常构建并运行；若在受限容器中出现运行时初始化失败，
-# 再按环境关闭。
+# ASan 默认启用；受限容器无法初始化时可临时关闭，Windows 上按平台跳过。
 enabled = true
 build_dir = "build/asan"
 compiler = "clang++"

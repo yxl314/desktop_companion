@@ -7,19 +7,46 @@
 - DEBUG / INFO / WARN / ERROR 四级日志
 - 线程安全
 - 按文件大小轮转
-- 运行期检测日志文件被外部删除/轮转，并自动重开
+- 运行期检测日志文件被外部删除/替换/重命名，并自动重开（Windows 上打开中的文件不能被外部删除、替换或重命名，该恢复路径仅 POSIX 可用）
 - 归档失败时继续写当前文件，写失败有有限重试
 - `trace_scope` 追踪调用链，日志包含当前节点和父亲节点 ID
 - 显式 `trace_frame` + `restore_scope` 支持跨线程接续
-- C++11，无 Qt / 第三方依赖（目录创建使用薄平台封装）
+- C++11，无 Qt / 第三方依赖（目录创建、文件打开等使用薄平台封装）
+- Linux 与 Windows：Windows 路径按 UTF-8 转宽字符 API 后调用 Win32 原生文件 API；MinGW-w64 与 MSVC 下均可构建，CTest 覆盖 unit / integration / smoke
 - CMake 与 qmake 集成
+
+## 平台支持
+
+支持 Linux/POSIX 与 Windows；Windows 使用 MSYS2 UCRT64 或 mingw64 时，编译器、Qt、make 应来自同一套环境。源码按 C++11 构建，Windows 路径按 UTF-8 转为 Win32 宽字符 API。
+
+## 架构
+
+- `src/stacklog.cpp` 是平台无关核心：日志格式、级别、轮转、trace、写失败重试/降级、
+  文件变化检查；**不包含任何 `_WIN32` 平台宏**。
+- `src/platform.hpp` 定义内部端口：路径存在/大小/逐级建目录/删除/改名、追加写文件句柄、
+  UTF-8 路径预校验、路径拼接、本地时间戳。端口只在 `src/` 内使用，不安装、不进公开头。
+- `src/platform_posix.cpp` / `src/platform_win32.cpp` 是端口的真实适配器：Windows 用
+  Win32 原生 API 与宽字符路径，POSIX 用 `stat`/`mkdir`/`rename`。两平台共享的遍历/
+  格式化/拼接/流句柄在 `src/platform_dirs.hpp`、`platform_time.hpp`、`platform_paths.hpp`、
+  `platform_stream.hpp`（内部头，不安装）。
+- 单元测试目标 = `src/stacklog.cpp` + `tests/support/fake_platform.cpp`，**不链接真实
+  平台适配器**：假端口可编排成功/失败/写失败/rename 失败/时间/UTF-8 错误，并记录调用与
+  内存文件内容。集成/冒烟目标链接真实适配器与真实文件系统。
 
 ## 目录结构
 
 ```text
 stacklog/
-├── include/stacklog/stacklog.hpp
-├── src/stacklog.cpp
+├── include/stacklog/stacklog.hpp     # 公开接口（唯一安装的头）
+├── src/
+│   ├── stacklog.cpp                  # 平台无关核心（无平台宏）
+│   ├── platform.hpp                  # 内部平台端口
+│   ├── platform_posix.cpp            # POSIX 适配器
+│   ├── platform_win32.cpp            # Windows 适配器
+│   ├── platform_dirs.hpp             # 共享：逐级建目录
+│   ├── platform_time.hpp             # 共享：本地时间戳
+│   ├── platform_paths.hpp            # 共享：路径拼接
+│   └── platform_stream.hpp           # 共享：ofstream 追加写句柄
 ├── CMakeLists.txt
 ├── stacklog.pri
 ├── check.sh
@@ -34,8 +61,12 @@ stacklog/
 │   ├── qt_demo/
 │   └── qt_worker_demo/
 ├── benchmarks/
-├── docs/
 └── tests/
+    ├── unit/test_stacklog.cpp        # 假平台端口，公开 API/分支
+    ├── integration/test_<流程>.cpp    # 真实文件系统复合流程
+    ├── smoke/test_<业务流程>.cpp      # 完整业务线
+    ├── support/                       # test_harness / fake_platform / 真实文件系统辅助
+    └── coverage/run_coverage.py       # gcov JSON 公开接口/分支门禁
 ```
 
 ## 快速开始
@@ -123,7 +154,7 @@ app.log.5
 
 超过上限时关闭当前文件，依次重命名归档，再重新打开 `app.log`。
 
-运行期每写入 1024 条会检查一次当前文件是否仍在原路径上。文件被外部删除、截断或重命名后，会重新打开并继续写；归档重命名失败时不会丢弃当前文件，而是继续追加，并在文件再增长一个 `max_file_size` 后重试轮转。
+运行期每写入 1024 条会检查一次当前文件是否仍在原路径上。文件被外部删除、截断或重命名后，会重新打开并继续写；归档重命名失败时不会丢弃当前文件，而是继续追加，并在文件再增长一个 `max_file_size` 后重试轮转。Windows 上库以默认共享模式打开日志文件，外部进程无法删除、替换或重命名仍在打开的文件，因此该恢复机制仅在 POSIX 下可用。
 
 配置：
 
@@ -222,7 +253,8 @@ STACKLOG_VERSION_PATCH
 include(path/to/stacklog/stacklog.pri)
 ```
 
-`stacklog.pri` 已包含头文件路径、`src/stacklog.cpp` 和 pthread 链接。
+`stacklog.pri` 已包含头文件路径、`src/stacklog.cpp`、对应平台适配器（`win32: platform_win32.cpp`，
+否则 `platform_posix.cpp`）、内部端口头与 C++11 配置；pthread 只在 POSIX 下链接，Windows 不需要。
 
 ## 构建与测试
 
@@ -234,22 +266,56 @@ ctest --test-dir build --output-on-failure
 
 要求：C++11、CMake 3.16+；qmake 集成使用 Qt 5/6 的 qmake。
 
-测试覆盖：
+Windows（MSYS2 UCRT64，cmd；PATH 中只放 UCRT64 一套环境，不要与 mingw64 混用）：
 
-```text
-格式、转义、空消息、级别切换
-轮转、max_files=1、超长单行、归档内容完整
-三层父子关系、多根、作用域结束
-多线程并发写
-非法配置和降级路径
-跨线程 capture/restore、并发 restore、无效帧
-外部删除、轮转失败、写失败重试
-并发轮转压力
-CMake install + find_package + consumer
-qmake + Qt 工作线程 trace/轮转断言
+```bat
+set "PATH=C:\msys2\ucrt64\bin;C:\msys2\usr\bin;%PATH%"
+cmake -S . -B build-win -G Ninja -DCMAKE_CXX_COMPILER=C:/msys2/ucrt64/bin/g++.exe
+cmake --build build-win
+ctest --test-dir build-win --output-on-failure
 ```
 
-当前有 qmake 时 CTest 共 10 项测试。
+有 Qt 6 qmake 时 CTest 会自动追加 `stacklog_qmake`；该测试内部固定使用 qmake 同目录的
+Qt/编译器运行库和同一环境的 make，不依赖调用者 shell 的 PATH 顺序。
+
+MSVC 使用 Visual Studio 生成器（多配置），构建和测试都要指定配置：
+
+```bash
+cmake -S . -B build -G "Visual Studio 18 2026" -A x64
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+```
+
+测试按三级组织，CTest 带 `LABELS`（`ctest -L unit|integration|smoke`）：
+
+单元（`tests/unit/`，假平台端口，覆盖全部公开 API 与分支）：
+
+```text
+init 全部失败路径（空 dir/base、零上限、UTF-8 非法、make_dirs/open 失败）与成功/重复 init
+shutdown 未初始化/已初始化/重复调用；set_level 过滤与 off
+log_line 启用/禁用、字段格式、文件名为空/反斜杠、流操纵符重载
+嵌套 trace、capture_trace、restore_scope、restore_trace_scope（有效/无效帧）
+写失败降级与 32 次后重开、轮转/remove 失败/rename 失败、外部删除与截断检测
+```
+
+集成（`tests/integration/`，真实文件系统，复合流程）：
+
+```text
+格式/转义/级别切换、轮转与 max_files=1、超长单行、归档内容完整
+trace 父子/多根/作用域结束、多线程并发写、跨线程 capture/restore
+非法配置与降级、外部删除/轮转失败/写失败重试、UTF-8 中文路径、并发轮转压力
+CMake install + find_package consumer、qmake + Qt 工作线程 trace/轮转断言
+```
+
+冒烟（`tests/smoke/`，完整业务线）：
+
+```text
+init → 各级别日志 → 嵌套 trace → 跨线程接续 → 小文件轮转 → shutdown → 校验文件/trace
+非法配置失败 → 恢复初始化 → 外部删除后重建 → 重复 shutdown
+```
+
+当前 CTest 共 14 项（unit 1、integration 11 = 9 个流程 + install + qmake、smoke 2）；
+没有 qmake 的环境为 13 项。
 
 ## Qt 工作线程示例
 
@@ -276,114 +342,54 @@ QStandardPaths::AppLocalDataLocation/stacklog/stacklog-qt-worker-demo/
 
 ## 工程检查
 
-项目根目录提供 `ci.toml`、`standardize.toml` 和 `audit.toml`，用外部工具替代托管 CI。排版和命名规则与 C++ 标准库一致：类型、函数和变量全部 lower_snake_case，私有成员使用尾随下划线，宏使用 UPPER_CASE。clang-tidy 开启 `modernize-*`，但排除会建议 C++14/17 设施、宏转 enum 及大范围风格改写的检查。
+项目根目录提供 `ci.toml`、`standardize.toml` 和 `audit.toml`，用外部工具替代托管 CI。排版和命名规则与 C++ 标准库一致：类型、函数和变量全部 lower_snake_case，私有成员使用尾随下划线，宏使用 UPPER_CASE。`.clang-format` / `.clang-tidy` 只负责排版和命名；静态检查由 cxx-audit 负责。
 
 ```bash
 # 构建 + 测试（ci.toml 同时构建 benchmark）
-python3 ../cxx_ci/ci/ci.py ci.toml
+cxx-ci -c ci.toml
 
 # 排版 + clang-tidy 检查
-python3 ../cxx_ci/standardize/standardize.py --check
+cxx-standardize -c standardize.toml --check
+
+# 或一次执行 ci + style
+cxx-ci -c ci.toml && cxx-standardize -c standardize.toml --check
 
 # cxx_audit：clang-tidy / CPD / ASan / Valgrind
-PYTHONPATH=../cxx_audit/src python3 -m cpp_audit -c audit.toml all
+cxx-audit -c audit.toml all
+
+# 公开接口 + 公开分支覆盖率（gcov JSON；要求 100%，否则非零退出）
+python3 tests/coverage/run_coverage.py
+# 或
+./check.sh coverage
 ```
 
-`audit.toml` 默认启用 ASan 运行。若在受限容器中 ASan 运行时无法初始化，
-把 `[asan].enabled` 改为 `false`。
+覆盖率脚本用 `--coverage -O0` 构建 unit 目标并实测 `include/stacklog/stacklog.hpp` 的
+公开函数与公开分支（gcov throw 分支除外）：当前 **16/16 公开函数、58/58 公开分支**。
+白名单为空：`log_line` 析构 `catch(...)` 的异常路径由 fake 端口注入 `write_line`
+抛异常的单测覆盖（`tests/unit/test_stacklog.cpp`），不需要豁免。平台适配器是内部
+端口，不在公开接口统计内，由集成/冒烟测试覆盖。
 
-## 性能基准
+Windows（cmd / PowerShell；三个工具已安装并在 PATH 中）：
+
+```bat
+cxx-ci -c ci.toml
+cxx-standardize -c standardize.toml --check
+cxx-audit -c audit.toml all
+```
+
+Windows 上 `cxx-ci -c ci.toml` 跑完整 CTest（含 install / qmake）；`cxx-standardize -c standardize.toml --check` 检查排版与命名；`cxx-audit -c audit.toml all` 在 Windows 上按平台跳过 ASan / Valgrind，tidy 与 CPD 正常执行。
+
+`audit.toml` 的 ASan 默认启用；受限容器内可临时关闭，Windows 上按平台跳过。
+
+Linux 日常构建不会编译 `#ifdef _WIN32` 分支，因此额外提供一个可选的交叉编译检查
+（需要 mingw-w64；未安装时打印跳过信息并返回 0，不计入失败，也不在 `all` 里）：
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTACKLOG_BUILD_BENCHMARKS=ON
-cmake --build build -j --target stacklog_bench
-./build/benchmarks/stacklog_bench 200000 1
-./build/benchmarks/stacklog_bench 200000 4
+./check.sh windows
 ```
 
-同步写入仍是默认方案；当前基准没有证明需要引入异步日志。方法与样例结果见 `docs/性能基准.md`。
-
-## 项目设计
-
-当前项目设计快照见：
-
-```text
-docs/项目设计.md
-```
-
-## 版本规划
-
-后续版本范围和发布条件见：
-
-```text
-docs/版本规划.md
-```
-
-运行示例：
-
-```bash
-./build/examples/cpp_demo/stacklog_cpp_demo
-```
-
-qmake 示例：
-
-```bash
-cd examples/qt_demo
-qmake qt_demo.pro
-make -j
-./qt_demo
-```
-
-工作线程示例：
-
-```bash
-cd examples/qt_worker_demo
-qmake qt_worker_demo.pro
-make -j
-./qt_worker_demo
-```
-
-## 当前版本
-
-```text
-0.2.0
-```
-
-当前开发分支已包含 0.4 可靠性增强（外部删除恢复、归档失败处理、写失败重试、压力测试和基准），但尚未作为 0.4.0 发布；0.3 Qt 适配器仍未开始。
-
-当前版本支持显式跨线程追踪：
-
-- `trace_frame` 帧快照
-- `capture_trace()` 捕获
-- `restore_scope` RAII 接续
-- `STACKLOG_RESTORE_TRACE` 宏
-- 跨线程节点 ID 唯一性
-
-不支持自动跨线程传播；跨线程必须显式传递帧。
-
-## 设计边界
-
-明确不做：
-
-- 异步日志
-- 网络日志
-- 多进程文件锁
-- 按天轮转
-- 日志压缩
-- Qt 翻译
-- 默认 QDebug 接管（可选适配器见分析文档）
-- 跨线程自动追踪恢复
-- 错误码体系
-
-这些不属于当前轻量日志库的核心需求。
-
-完整设计说明见：
-
-```text
-docs/项目设计.md
-docs/跨线程追踪与QDebug接管分析.md
-docs/版本规划.md
-```
+它用与项目一致的严格警告集（含 `-Werror`）交叉编译库和全部测试，只证明 Windows 分支
+“能编译且无警告”，不证明运行期正确；运行期由 Windows 上的真实构建和 CTest 验证。
 
 ## 许可证
 

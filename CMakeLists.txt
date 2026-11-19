@@ -8,8 +8,8 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Gui Widgets Networ
 find_package(SQLite3 REQUIRED)
 qt_standard_project_setup()
 
-add_subdirectory(third_party/stacklog)
-add_subdirectory(third_party/singleproc)
+add_subdirectory(third_party/stacklog EXCLUDE_FROM_ALL)
+add_subdirectory(third_party/singleproc EXCLUDE_FROM_ALL)
 
 qt_add_translations(desktop_companion
     TS_FILES translations/desktop_companion_en.ts

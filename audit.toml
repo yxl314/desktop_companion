@@ -1,7 +1,12 @@
-# cxx_audit 配置 —— desktop_companion
+# cxx_audit 配置 —— desktop_companion（cxx-audit 0.1.0 / cxx_audit 7a13a75）
 #
-# 在仓库根目录运行（Windows 构建机上用 mingw64 的 clang-tidy）：
-#     PYTHONPATH=<cxx_audit>/src python -m cpp_audit -c audit.toml tidy
+# 在仓库根目录运行（Windows 构建机用 MSYS2 mingw64 的 clang-tidy，需在 PATH）：
+#     cxx-audit -c audit.toml all
+#     cxx-audit -c audit.toml --check-config
+#     cxx-audit -c audit.toml tidy
+#
+# 新版 cxx-audit 不再读取项目根目录的 .clang-tidy：clang-tidy 检查项由
+# [tidy.groups] 的组开关生成（.clang-tidy 仍供 cxx-standardize 使用）。
 #
 # cpd 需要 PMD（npm）；本机未装 node/npm，默认关闭。
 # asan / valgrind 只在 POSIX 且工具可用时启用，Windows 上关闭。
@@ -22,8 +27,21 @@ rules = []
 
 [tidy]
 enabled = true
-# clang-tidy 检查集由项目根目录 .clang-tidy 提供。
+# 警告只记录、不阻断门禁（与旧配置一致）；error 级诊断始终失败。
 fail_on_warnings = false
+
+[tidy.groups]
+# 映射旧 .clang-tidy 启用的检查族：clang-analyzer / bugprone / cert /
+# modernize / performance / portability / readability。
+# cert-* 与 readability-* 的部分细分项没有独立组，按语义并入最接近的组。
+null_pointer = true
+uninitialized = true
+memory = true
+lifetime = true
+common_bugs = true
+performance = true
+modernize = true
+style = true
 
 [cpd]
 enabled = false
