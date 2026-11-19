@@ -5,7 +5,7 @@
 #     cxx-pkg -c cxx_pkg.toml --check-config
 #     cxx-pkg -c cxx_pkg.toml --dry-run
 #
-# 兼容版本：cxx_pkg c8bacf9（TOML 配置，取代旧 cxx_pkg.ini）。
+# 工具版本：cxx_pkg c8bacf9（TOML 配置）。
 #
 # 已知工具侧问题（不在本仓库修）：cxx_pkg c8bacf9 的配置校验拒绝 [qt] qmldir
 # （deployer.py 已支持 --qmldir，但 config/reader.py 的 _DEFAULTS 未登记该键），
