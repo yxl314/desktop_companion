@@ -41,6 +41,9 @@ if(WIN32)
     target_link_libraries(singleproc PUBLIC advapi32)
 endif()
 
+# 作为子项目（add_subdirectory）使用时只提供构建目标，不生成安装与
+# CMake 包配置文件，避免打包工具的暂存前缀影响配置阶段。
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
 install(TARGETS singleproc
     EXPORT singleprocTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -54,6 +57,7 @@ install(EXPORT singleprocTargets
     FILE singleprocTargets.cmake
     NAMESPACE singleproc::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/singleproc)
+endif()
 
 configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/singleprocConfig.cmake.in
