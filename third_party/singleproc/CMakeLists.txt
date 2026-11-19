@@ -57,7 +57,6 @@ install(EXPORT singleprocTargets
     FILE singleprocTargets.cmake
     NAMESPACE singleproc::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/singleproc)
-endif()
 
 configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/singleprocConfig.cmake.in
@@ -75,6 +74,7 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/singleprocConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/singleprocConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/singleproc)
+endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     set(SINGLEPROC_DEFAULT_TESTS ON)
