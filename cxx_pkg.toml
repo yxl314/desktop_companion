@@ -5,14 +5,10 @@
 #     cxx-pkg -c cxx_pkg.toml --check-config
 #     cxx-pkg -c cxx_pkg.toml --dry-run
 #
-# 工具版本：cxx_pkg c8bacf9（TOML 配置）。
+# 工具版本：cxx_pkg 8ea86c2（TOML 配置）。
 #
-# 已知工具侧问题（不在本仓库修）：cxx_pkg c8bacf9 的配置校验拒绝 [qt] qmldir
-# （deployer.py 已支持 --qmldir，但 config/reader.py 的 _DEFAULTS 未登记该键），
-# 因此这里暂时不能写 qmldir，windeployqt 不会扫描 qml/ 的 import。待 cxx_pkg
-# 修复后补上：
-#     [qt]
-#     qmldir = "qml"
+# qmldir 让 windeployqt 扫描 qml/ 的 import，把 QtQuick/Controls 等模块
+# 一并部署进 zip；cxx_pkg 8ea86c2 起配置校验已支持该键。
 
 [project]
 name = "desktop_companion"
@@ -36,3 +32,4 @@ checksums = true
 [qt]
 enabled = "auto"
 prefix = "C:/msys2/ucrt64"
+qmldir = "qml"
